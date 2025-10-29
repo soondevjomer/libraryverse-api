@@ -1,9 +1,11 @@
 package com.soondevjomer.libraryverse.config;
 
+import com.soondevjomer.libraryverse.exception.JwtAuthEntryPoint;
 import com.soondevjomer.libraryverse.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -29,6 +31,7 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final JwtAuthEntryPoint jwtAuthEntryPoint;
 
     @Bean
     public PasswordEncoder passwordEncoder(){
@@ -69,11 +72,19 @@ public class SecurityConfig {
                         httpSecurityCorsConfigurer.configurationSource(corsConfigurationSource())
                 )
                 .authorizeHttpRequests(
-                        req -> req.requestMatchers(
-                                "auth/**"
-                        ).permitAll()
+                        req -> req
+                                .requestMatchers("/auth/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/books").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/books/{bookId}").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/libraries").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/libraries/{libraryId}").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/profile/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/genres/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthEntryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authenticationProvider(authenticationProvider())

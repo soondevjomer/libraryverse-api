@@ -1,19 +1,23 @@
 package com.soondevjomer.libraryverse.service.impl;
 
+import com.soondevjomer.libraryverse.constant.Role;
 import com.soondevjomer.libraryverse.dto.LoginRequest;
 import com.soondevjomer.libraryverse.dto.RefreshTokenRequest;
 import com.soondevjomer.libraryverse.dto.RegisterRequest;
 import com.soondevjomer.libraryverse.dto.Tokens;
+import com.soondevjomer.libraryverse.model.Library;
 import com.soondevjomer.libraryverse.model.User;
+import com.soondevjomer.libraryverse.repository.LibraryRepository;
 import com.soondevjomer.libraryverse.repository.UserRepository;
 import com.soondevjomer.libraryverse.service.AuthService;
 import com.soondevjomer.libraryverse.service.JwtService;
+import com.soondevjomer.libraryverse.service.LibraryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -21,10 +25,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
@@ -32,6 +37,8 @@ public class AuthServiceImpl implements AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
+    private final LibraryService libraryService;
+    private final LibraryRepository libraryRepository;
 
         @Transactional
         @Override
@@ -40,13 +47,25 @@ public class AuthServiceImpl implements AuthService {
                 throw new IllegalArgumentException("Username is already in use.");
             }
 
+            log.info("REGISTER REQUEST ROLE: {}", registerRequest.getRole());
             User user = User.builder()
                     .name(registerRequest.getName())
                     .username(registerRequest.getUsername())
                     .password(passwordEncoder.encode(registerRequest.getPassword()))
                     .role(registerRequest.getRole())
+                    .email(registerRequest.getEmail())
                     .build();
-            userRepository.save(user);
+            User savedUser = userRepository.save(user);
+            if (savedUser.getRole().equals(Role.LIBRARIAN)) {
+                log.info("Creating library for newly registered librarian");
+                libraryRepository.save(
+                        Library.builder()
+                                .name(savedUser.getName() + "'s Library")
+                                .owner(savedUser)
+                                .viewCount(0L)
+                                .build()
+                );
+            }
 
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
@@ -54,6 +73,7 @@ public class AuthServiceImpl implements AuthService {
                             registerRequest.getPassword()
                     )
             );
+
 
             return jwtService.generateTokens(authentication);
         }
@@ -69,6 +89,7 @@ public class AuthServiceImpl implements AuthService {
             );
 
             // Set authentication in security context
+            log.info("Security Context Holder: " + authentication.getName());
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             // Generate Token Pair
@@ -100,4 +121,8 @@ public class AuthServiceImpl implements AuthService {
             String accessToken = jwtService.generateAccessToken(authentication);
             return new Tokens(accessToken, refreshToken);
         }
+
+
+
+
 }

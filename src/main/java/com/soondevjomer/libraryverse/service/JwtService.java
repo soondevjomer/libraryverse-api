@@ -1,22 +1,29 @@
 package com.soondevjomer.libraryverse.service;
 
+import com.soondevjomer.libraryverse.constant.Role;
 import com.soondevjomer.libraryverse.dto.Tokens;
+import com.soondevjomer.libraryverse.exception.InvalidJwtException;
+import com.soondevjomer.libraryverse.model.Customer;
+import com.soondevjomer.libraryverse.model.User;
+import com.soondevjomer.libraryverse.repository.CustomerRepository;
+import com.soondevjomer.libraryverse.repository.LibraryRepository;
+import com.soondevjomer.libraryverse.repository.UserRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class JwtService {
@@ -29,6 +36,10 @@ public class JwtService {
     @Value("${app.jwt.refresh-expiration}")
     private long refreshExpirationMs;
 
+    private final LibraryRepository libraryRepository;
+    private final UserRepository userRepository;
+    private final CustomerRepository customerRepository;
+
 
     public Tokens generateTokens(Authentication authentication) {
         String accessToken = generateAccessToken(authentication);
@@ -39,6 +50,7 @@ public class JwtService {
 
     // Generate access token
     public String generateAccessToken(Authentication authentication) {
+        log.info("request for access token");
         return generateToken(authentication, jwtExpirationMs, new HashMap<>());
     }
 
@@ -46,6 +58,7 @@ public class JwtService {
     public String generateRefreshToken(Authentication authentication) {
         Map<String, String> claims = new HashMap<>();
         claims.put("tokenType", "refresh");
+        log.info("request for refresh token");
         return generateToken(authentication, refreshExpirationMs, claims);
     }
 
@@ -54,7 +67,38 @@ public class JwtService {
 
         Date now = new Date(); // Time of token creation
         Date expiryDate = new Date(now.getTime() + expirationInMs); // Time of token expiration
+        String role = userPrincipal.getAuthorities()
+                .iterator().next().getAuthority();
+        claims.put("name", authentication.getName());
+        claims.put("username", userPrincipal.getUsername());
+        claims.put("role", role);
 
+        User currentUser = userRepository.findByUsername(userPrincipal.getUsername())
+                        .orElseThrow(()->new NoSuchElementException("User not found"));
+        if (currentUser!=null) {
+            claims.put("email", currentUser.getEmail());
+            claims.put("userId", currentUser.getId().toString());
+            claims.put("image", currentUser.getImage());
+        }
+
+        if (role.equals(Role.LIBRARIAN.toString())) {
+            libraryRepository.findByOwnerUsername(userPrincipal.getUsername())
+                    .ifPresent(library -> {
+                        claims.put("libraryId", String.valueOf(library.getId()));
+                        claims.put("libraryName", String.valueOf(library.getName()));
+            });
+        }
+
+        if (role.equals(Role.READER.toString())) {
+            Optional<Customer> optionalCustomer = customerRepository.findByUser(currentUser);
+            optionalCustomer.ifPresent((customer) -> {
+                claims.put("customerId", String.valueOf(customer.getId()));
+                claims.put("address", String.valueOf(customer.getAddress()));
+                claims.put("contactNumber", String.valueOf(customer.getContactNumber()));
+            });
+        }
+
+        log.info("generate token");
         return Jwts.builder()
                 .header()
                 .add("typ", "JWT")
@@ -106,7 +150,7 @@ public class JwtService {
                     .parseSignedClaims(token)
                     .getPayload();
         } catch (JwtException | IllegalArgumentException e) {
-            throw new RuntimeException(e);
+            throw new InvalidJwtException("Invalid or JWT token expired", e);
         }
 
         return claims;
@@ -116,4 +160,6 @@ public class JwtService {
         byte[] keyBytes = Decoders.BASE64.decode(jwtSecret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
+
+
 }

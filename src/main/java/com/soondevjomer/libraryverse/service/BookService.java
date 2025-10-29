@@ -1,20 +1,21 @@
 package com.soondevjomer.libraryverse.service;
 
 import com.soondevjomer.libraryverse.dto.BookDto;
-import com.soondevjomer.libraryverse.model.Book;
+import com.soondevjomer.libraryverse.dto.FilterDto;
+import com.soondevjomer.libraryverse.dto.PageModel;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface BookService {
 
-    List<BookDto> getAllBooks();
+    PageModel<List<BookDto>> getBookByPage(FilterDto filterDto);
 
     BookDto getBookById(Long bookId);
 
-    BookDto saveBook(BookDto bookDto);
+    BookDto updateBookById(Long bookId, BookDto bookDto, MultipartFile file);
 
-    BookDto updateBookById(Long bookId, BookDto bookDto);
+    BookDto createBookToLibrary(BookDto bookDto, MultipartFile file);
 
-    void deleteBook(Long bookId);
+
 }
