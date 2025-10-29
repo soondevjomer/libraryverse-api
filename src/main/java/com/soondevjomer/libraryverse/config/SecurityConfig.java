@@ -76,6 +76,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(
                         req -> req
+                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers("/auth/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
                                 .requestMatchers(HttpMethod.GET, "/books").permitAll()
