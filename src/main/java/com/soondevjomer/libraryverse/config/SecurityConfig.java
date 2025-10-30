@@ -37,21 +37,20 @@ public class SecurityConfig {
     private final CorsLoggingFilter corsLoggingFilter;
 
     @Bean
-    public PasswordEncoder passwordEncoder(){
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    public AuthenticationProvider authenticationProvider(){
-        DaoAuthenticationProvider authenticationProvider = new DaoAuthenticationProvider();
-        authenticationProvider.setUserDetailsService(userDetailsService);
-        authenticationProvider.setPasswordEncoder(passwordEncoder());
-        return authenticationProvider;
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
     }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-
         return authConfig.getAuthenticationManager();
     }
 
@@ -61,12 +60,12 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:4200",
                 "https://libraryverse-app.netlify.app"
-        )); // Allow specific origins
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*")); // Allow all headers
-        configuration.setAllowCredentials(true); // Allow credentials (e.g., cookies)
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration); // Apply to all paths
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
@@ -74,27 +73,25 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
         return httpSecurity
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(Customizer.withDefaults())
-                .authorizeHttpRequests(
-                        req -> req
-                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                                .requestMatchers("/auth/**").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/books").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/books/{bookId}").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/libraries").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/libraries/{libraryId}").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/profile/**").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/genres/**").permitAll()
-
+                .cors(httpSecurityCorsConfigurer ->
+                        httpSecurityCorsConfigurer.configurationSource(corsConfigurationSource())
+                )
+                .authorizeHttpRequests(req -> req
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/books").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/books/{bookId}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/libraries").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/libraries/{libraryId}").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/profile/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/genres/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthEntryPoint))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .addFilterBefore(corsLoggingFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .authenticationProvider(authenticationProvider())
-
                 .build();
     }
 }
