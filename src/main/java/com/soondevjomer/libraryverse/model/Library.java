@@ -18,7 +18,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "library")
+@Table(name = "libraries")
 public class Library {
 
     @Id
