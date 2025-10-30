@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -25,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -40,45 +42,54 @@ public class AuthServiceImpl implements AuthService {
     private final LibraryService libraryService;
     private final LibraryRepository libraryRepository;
 
-        @Transactional
-        @Override
-        public Tokens register(RegisterRequest registerRequest) {
-            if (userRepository.existsByUsername(registerRequest.getUsername())) {
-                throw new IllegalArgumentException("Username is already in use.");
-            }
+    @Transactional
+    @Override
+    public Tokens register(RegisterRequest registerRequest) {
 
-            log.info("REGISTER REQUEST ROLE: {}", registerRequest.getRole());
-            User user = User.builder()
-                    .name(registerRequest.getName())
-                    .username(registerRequest.getUsername())
-                    .password(passwordEncoder.encode(registerRequest.getPassword()))
-                    .role(registerRequest.getRole())
-                    .email(registerRequest.getEmail())
-                    .build();
-            User savedUser = userRepository.save(user);
-            if (savedUser.getRole().equals(Role.LIBRARIAN)) {
-                log.info("Creating library for newly registered librarian");
-                libraryRepository.save(
-                        Library.builder()
-                                .name(savedUser.getName() + "'s Library")
-                                .owner(savedUser)
-                                .viewCount(0L)
-                                .build()
-                );
-            }
-
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(
-                            registerRequest.getUsername(),
-                            registerRequest.getPassword()
-                    )
-            );
-
-
-            return jwtService.generateTokens(authentication);
+        if (userRepository.existsByUsername(registerRequest.getUsername())) {
+            throw new IllegalArgumentException("Username is already in use.");
         }
 
-        @Override
+        log.info("REGISTER REQUEST ROLE: {}", registerRequest.getRole());
+
+        User user = User.builder()
+                .name(registerRequest.getName())
+                .username(registerRequest.getUsername())
+                .password(passwordEncoder.encode(registerRequest.getPassword()))
+                .role(registerRequest.getRole())
+                .email(registerRequest.getEmail())
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+        if (savedUser.getRole().equals(Role.LIBRARIAN)) {
+            log.info("Creating library for newly registered librarian");
+            libraryRepository.save(
+                    Library.builder()
+                            .name(savedUser.getName() + "'s Library")
+                            .owner(savedUser)
+                            .viewCount(0L)
+                            .build()
+            );
+        }
+
+        log.info("Try manually create Authentication (no DB re-read issue)");
+        UserDetails userDetails = new org.springframework.security.core.userdetails.User(
+                savedUser.getUsername(),
+                savedUser.getPassword(),
+                List.of(new SimpleGrantedAuthority(savedUser.getRole().name()))
+        );
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities()
+        );
+
+        log.info("Generating tokens for newly registered user: {}", savedUser.getUsername());
+        return jwtService.generateTokens(authentication);
+    }
+
+
+    @Override
         public Tokens login(LoginRequest loginRequest) {
 
             Authentication authentication = authenticationManager.authenticate(
