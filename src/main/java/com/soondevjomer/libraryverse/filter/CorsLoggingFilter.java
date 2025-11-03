@@ -21,7 +21,7 @@ public class CorsLoggingFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            log.info("🔥 CORS Preflight Request Received:");
+            log.info("   CORS Preflight Request Received:");
             log.info("   Origin: {}", request.getHeader("Origin"));
             log.info("   Access-Control-Request-Method: {}", request.getHeader("Access-Control-Request-Method"));
             log.info("   Access-Control-Request-Headers: {}", request.getHeader("Access-Control-Request-Headers"));
@@ -30,7 +30,7 @@ public class CorsLoggingFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
 
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
-            log.info("✅ CORS Preflight Response Headers:");
+            log.info("  CORS Preflight Response Headers:");
             response.getHeaderNames()
                     .forEach(name -> log.info("   {}: {}", name, response.getHeader(name)));
         }

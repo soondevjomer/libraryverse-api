@@ -69,13 +69,13 @@ public class JwtService {
         Date expiryDate = new Date(now.getTime() + expirationInMs); // Time of token expiration
         String role = userPrincipal.getAuthorities()
                 .iterator().next().getAuthority();
-        claims.put("name", authentication.getName());
         claims.put("username", userPrincipal.getUsername());
         claims.put("role", role);
 
         User currentUser = userRepository.findByUsername(userPrincipal.getUsername())
                         .orElseThrow(()->new NoSuchElementException("User not found"));
         if (currentUser!=null) {
+            claims.put("name", currentUser.getName());
             claims.put("email", currentUser.getEmail());
             claims.put("userId", currentUser.getId().toString());
             claims.put("image", currentUser.getImage());

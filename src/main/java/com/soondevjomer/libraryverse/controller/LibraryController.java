@@ -27,13 +27,13 @@ public class LibraryController {
     @GetMapping
     public ResponseEntity<?> getLibraryByPage(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "12") int size,
             @RequestParam(defaultValue = "id") String sortField,
             @RequestParam(defaultValue = "asc") String sortOrder,
-            @RequestParam(defaultValue = "") String search,
-            @RequestParam(defaultValue = "") String sortBy,
-            @RequestParam(defaultValue = "") String sortDirection,
-            @RequestParam(defaultValue = "0") int libraryId
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "CREATED_DATE") String sortBy,
+            @RequestParam(defaultValue = "ASC") String sortDirection,
+            @RequestParam(required = false) Integer libraryId
     ) {
         return ResponseEntity.ok(libraryService.getLibraryByPage(
                 FilterDto.builder()
