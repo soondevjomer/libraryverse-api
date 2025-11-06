@@ -28,8 +28,11 @@ public class BookDetail {
     private String title;
 
     private String seriesTitle;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
     private String bookCover;
+    private String bookThumbnailCover;
 
     @ManyToMany(cascade = CascadeType.ALL)
     @JoinTable(

@@ -24,6 +24,7 @@ public class LibraryDto {
     private String description;
     private String contactNumber;
     private String libraryCover;
+    private String libraryThumbnailCover;
 
     private String ownerName;
 

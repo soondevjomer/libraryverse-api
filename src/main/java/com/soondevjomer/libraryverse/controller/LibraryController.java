@@ -62,4 +62,11 @@ public class LibraryController {
     ) {
         return ResponseEntity.ok(libraryService.updateLibraryById(libraryId, libraryRequestDto, file));
     }
+
+    @GetMapping(value = "/info/{libraryId}")
+    public ResponseEntity<?> getLibraryInfo(
+            @PathVariable Long libraryId
+    ) {
+        return ResponseEntity.ok(libraryService.getLibraryInfo(libraryId));
+    }
 }

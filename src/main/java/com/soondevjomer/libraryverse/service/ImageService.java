@@ -11,7 +11,7 @@ public interface ImageService {
 
     UploadDto uploadProfileImage(MultipartFile file, String username, Long userId);
 
-    String saveTempBookCover(MultipartFile file, Long libraryId);
+    void deleteImageFolder(String category, Long ownerId);
 
     void deleteImageFile(String imageUrl);
 }

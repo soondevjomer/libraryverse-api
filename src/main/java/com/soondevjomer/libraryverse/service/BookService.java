@@ -16,6 +16,4 @@ public interface BookService {
     BookDto updateBookById(Long bookId, BookDto bookDto, MultipartFile file);
 
     BookDto createBookToLibrary(BookDto bookDto, MultipartFile file);
-
-
 }

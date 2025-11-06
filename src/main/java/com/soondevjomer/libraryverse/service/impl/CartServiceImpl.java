@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,27 +27,25 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public boolean addToCart(Long bookId) {
-        try {
-            String username = SecurityContextHolder.getContext().getAuthentication().getName();
-            User user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-            Book book = bookRepository.findById(bookId)
-                    .orElseThrow(() -> new RuntimeException("Book not found"));
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> new RuntimeException("Book not found"));
 
-            Cart cart = cartRepository.findByCartByIdAndCartedBookId(user.getId(), bookId)
-                    .orElse(Cart.builder()
-                            .cartBy(user)
-                            .quantity(1)
-                            .cartedBook(book)
-                            .build());
+        int cartQuantity = (book.getInventory().getAvailableStock()!=0)
+                ? 1
+                : 0;
 
-            cartRepository.save(cart);
+        Cart cart = cartRepository.findByCartByIdAndCartedBookId(user.getId(), bookId)
+                .orElse(Cart.builder()
+                        .cartBy(user)
+                        .quantity(cartQuantity)
+                        .cartedBook(book)
+                        .build());
 
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+        return cartRepository.save(cart).getId()!=null;
     }
 
     @Override

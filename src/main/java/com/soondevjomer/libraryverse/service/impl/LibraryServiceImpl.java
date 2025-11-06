@@ -3,6 +3,7 @@ package com.soondevjomer.libraryverse.service.impl;
 import com.soondevjomer.libraryverse.dto.*;
 import com.soondevjomer.libraryverse.mapper.LibraryMapper;
 import com.soondevjomer.libraryverse.model.Library;
+import com.soondevjomer.libraryverse.model.User;
 import com.soondevjomer.libraryverse.repository.BookRepository;
 import com.soondevjomer.libraryverse.repository.LibraryRepository;
 import com.soondevjomer.libraryverse.repository.UserRepository;
@@ -26,7 +27,7 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class LibraryServiceImpl implements LibraryService{
+public class LibraryServiceImpl implements LibraryService {
 
     private final UserRepository userRepository;
     private final LibraryRepository libraryRepository;
@@ -115,16 +116,19 @@ public class LibraryServiceImpl implements LibraryService{
                 .orElseThrow(() -> new AccessDeniedException("You are not authorized to update this library with ID: " + libraryId));
 
         if (file != null && !file.isEmpty()) {
-            String oldCoverUrl = existing.getLibraryCover();
-            if (oldCoverUrl != null && !oldCoverUrl.isEmpty()) {
-                imageService.deleteImageFile(oldCoverUrl);
+            try {
+                UploadDto uploadDto = imageService.uploadLibraryCover(
+                        file,
+                        existing.getName(),
+                        existing.getId()
+                );
+                existing.setLibraryCover(uploadDto.getFileUrl());
+                existing.setLibraryThumbnailCover(uploadDto.getThumbnailFileUrl());
+            } catch (Exception e) {
+                log.error("Image upload failed, rolling back library cover creation: {}", e.getMessage());
+                imageService.deleteImageFolder("library-covers", existing.getId());
+                log.info("Failed to upload library cover, cause of {}", e.getMessage());
             }
-            UploadDto uploadDto = imageService.uploadLibraryCover(
-              file,
-              existing.getName(),
-              existing.getId()
-            );
-            existing.setLibraryCover(uploadDto.getFileUrl());
         }
 
         log.info("proceed updating library...");
@@ -132,5 +136,29 @@ public class LibraryServiceImpl implements LibraryService{
 
         log.info("return library dto");
         return libraryMapper.toDto(updatedLibrary);
+    }
+
+    @Override
+    public LibraryInfoDto getLibraryInfo(Long libraryId) {
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        // Now check if requester have existed library
+        Optional<Library> optionalLibrary = libraryRepository.findByOwnerUsername(username);
+        if (optionalLibrary.isEmpty()) {
+            log.info("No library found");
+            return LibraryInfoDto.builder().libraryDto(null).build();
+        }
+
+        // Now check if requester owns the requested library
+        if (optionalLibrary.get().getId().equals(libraryId)) {
+            log.info("Requester owns this library");
+
+            return LibraryInfoDto.builder()
+                    .libraryDto(libraryMapper.toDto(optionalLibrary.get()))
+                    .build();
+        }
+
+        return LibraryInfoDto.builder().libraryDto(null).build();
     }
 }

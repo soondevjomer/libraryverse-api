@@ -1,19 +1,17 @@
 package com.soondevjomer.libraryverse.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class UploadDto {
-    private String fileName;
-    private String fileUrl;
-    private String thumbnailFileUrl;
-    private String folderPath;
+public class LibraryInfoDto {
+
+    @JsonProperty("library")
+    private LibraryDto libraryDto;
 }

@@ -48,5 +48,6 @@ public class Library {
 
     private Long viewCount = 0L;
     private String libraryCover;
+    private String libraryThumbnailCover;
 
 }

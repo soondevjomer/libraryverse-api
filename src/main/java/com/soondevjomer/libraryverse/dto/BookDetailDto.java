@@ -23,6 +23,7 @@ public class BookDetailDto {
     private String seriesTitle;
     private String description;
     private String bookCover;
+    private String bookThumbnailCover;
     private List<String> genres;
     private List<String> authors;
     private List<String> tags;

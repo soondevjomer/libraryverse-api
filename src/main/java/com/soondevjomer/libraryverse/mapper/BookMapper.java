@@ -38,6 +38,7 @@ public class BookMapper {
                     .seriesTitle(detail.getSeriesTitle())
                     .description(detail.getDescription())
                     .bookCover(detail.getBookCover())
+                    .bookThumbnailCover(detail.getBookThumbnailCover())
                     .price(detail.getPrice())
                     .publishedYear(detail.getPublishedYear())
                     .genres(detail.getGenres() == null ? List.of() :
@@ -89,6 +90,7 @@ public class BookMapper {
         detail.setSeriesTitle(dto.getSeriesTitle());
         detail.setDescription(dto.getDescription());
         detail.setBookCover(dto.getBookCover());
+        detail.setBookThumbnailCover(dto.getBookThumbnailCover());
         detail.setPrice(dto.getPrice());
         detail.setPublishedYear(dto.getPublishedYear());
 
@@ -131,6 +133,7 @@ public class BookMapper {
         existing.setSeriesTitle(dto.getSeriesTitle());
         existing.setDescription(dto.getDescription());
         existing.setBookCover(dto.getBookCover());
+        existing.setBookThumbnailCover(dto.getBookThumbnailCover());
         existing.setPrice(dto.getPrice());
         existing.setPublishedYear(dto.getPublishedYear());
 

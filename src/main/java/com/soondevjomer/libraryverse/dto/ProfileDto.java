@@ -16,4 +16,5 @@ public class ProfileDto {
     private String address;
     private String contactNumber;
     private String image;
+    private String imageThumbnail;
 }

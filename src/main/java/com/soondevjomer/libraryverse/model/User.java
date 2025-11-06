@@ -37,6 +37,7 @@ public class User {
     private String password;
 
     private String image;
+    private String imageThumbnail;
 
     @Enumerated(EnumType.STRING)
     private Role role;

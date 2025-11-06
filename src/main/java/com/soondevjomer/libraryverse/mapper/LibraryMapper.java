@@ -28,6 +28,7 @@ public class LibraryMapper {
                 .ownerName(library.getOwner()!=null ? library.getOwner().getName() : "")
                 .description(library.getDescription())
                 .libraryCover(library.getLibraryCover())
+                .libraryThumbnailCover(library.getLibraryThumbnailCover())
                 .popularityScore(libraryPopularDto.getPopularityScore())
                 .build();
     }
@@ -40,6 +41,7 @@ public class LibraryMapper {
                 .contactNumber(libraryDto.getContactNumber())
                 .description(libraryDto.getDescription())
                 .libraryCover(libraryDto.getLibraryCover())
+                .libraryThumbnailCover(libraryDto.getLibraryThumbnailCover())
                 .build();
     }
 
@@ -50,6 +52,7 @@ public class LibraryMapper {
         library.setContactNumber(dto.getContactNumber());
         library.setDescription(dto.getDescription());
         library.setLibraryCover(library.getLibraryCover());
+        library.setLibraryThumbnailCover(library.getLibraryThumbnailCover());
 
         return library;
     }

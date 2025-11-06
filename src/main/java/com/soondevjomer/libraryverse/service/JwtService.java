@@ -79,6 +79,7 @@ public class JwtService {
             claims.put("email", currentUser.getEmail());
             claims.put("userId", currentUser.getId().toString());
             claims.put("image", currentUser.getImage());
+            claims.put("imageThumbnail", currentUser.getImageThumbnail());
         }
 
         if (role.equals(Role.LIBRARIAN.toString())) {

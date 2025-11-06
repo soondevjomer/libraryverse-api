@@ -42,7 +42,7 @@ public class ProfileServiceImpl implements ProfileService {
 
         if (currentUser.getRole().equals(Role.READER)) {
             log.info("Updating profile for reader");
-            // Try updating reader customer address / contactnumber
+            // Try updating reader customer address / contact number
             Optional<Customer> optionalCustomer = customerRepository.findByUser(currentUser);
             if (optionalCustomer.isPresent()) {
                 optionalCustomer.get().setContactNumber(profileDto.getContactNumber());
@@ -54,21 +54,22 @@ public class ProfileServiceImpl implements ProfileService {
             }
         }
 
-        String newUserName = profileDto.getUsername();
-
         log.info("Try uploading user image");
         if (file != null && !file.isEmpty()) {
-            String oldUserImageUrl = currentUser.getImage();
-            log.info("old image Url {}", oldUserImageUrl);
-            if (oldUserImageUrl != null && !oldUserImageUrl.isEmpty()) {
-                imageService.deleteImageFile(oldUserImageUrl);
+            try {
+                UploadDto upload = imageService.uploadProfileImage(
+                        file,
+                        currentUser.getId().toString(),
+                        currentUser.getId()
+                );
+                currentUser.setImage(upload.getFileUrl());
+                currentUser.setImageThumbnail(upload.getThumbnailFileUrl());
+            } catch (Exception e) {
+                log.error("Image upload failed, rolling back profile image creation: {}", e.getMessage());
+                imageService.deleteImageFolder("profile-images", currentUser.getId());
+                log.info("Failed to upload profile image, cause of {}", e.getMessage());
             }
-            UploadDto upload = imageService.uploadProfileImage(
-                    file,
-                    newUserName,
-                    currentUser.getId()
-            );
-            currentUser.setImage(upload.getFileUrl());
+
         }
 
         currentUser.setUsername(profileDto.getUsername());
@@ -80,6 +81,7 @@ public class ProfileServiceImpl implements ProfileService {
         newProfileDto.setName(savedUser.getName());
         newProfileDto.setEmail(savedUser.getEmail());
         newProfileDto.setImage(savedUser.getImage());
+        newProfileDto.setImageThumbnail(savedUser.getImageThumbnail());
 
         return newProfileDto;
     }

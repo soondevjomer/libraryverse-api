@@ -16,4 +16,6 @@ public interface LibraryService {
     LibraryDto getLibraryById(Long libraryId);
 
     LibraryDto updateLibraryById(Long libraryId, LibraryRequestDto libraryRequestDto, MultipartFile file);
+
+    LibraryInfoDto getLibraryInfo(Long libraryId);
 }
