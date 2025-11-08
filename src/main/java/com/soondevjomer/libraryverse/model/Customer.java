@@ -24,7 +24,7 @@ public class Customer {
     private Long id;
 
     @CreationTimestamp
-    private LocalDateTime membershipDate;
+    private LocalDateTime createdDate;
 
     // FOR DELIVERY PURPOSES
     private String address;

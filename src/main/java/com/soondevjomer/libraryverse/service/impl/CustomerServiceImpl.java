@@ -50,6 +50,8 @@ public class CustomerServiceImpl implements CustomerService {
                             .name(customer.getUser().getName())
                             .email(customer.getUser().getEmail())
                             .image(customer.getUser().getImage())
+                            .imageThumbnail(customer.getUser().getImageThumbnail())
+                            .createdDate(customer.getCreatedDate())
                             .build())
                 .toList();
 
@@ -61,7 +63,5 @@ public class CustomerServiceImpl implements CustomerService {
                 customerPage.getTotalPages()
         );
     }
-
-
 
 }
