@@ -19,6 +19,8 @@ public class BookDto {
 
     private Long libraryId;
 
+    private String libraryName;
+
     private LocalDateTime createdDate;
 
     @JsonProperty("bookDetail")

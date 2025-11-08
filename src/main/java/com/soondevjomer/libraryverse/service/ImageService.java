@@ -13,5 +13,14 @@ public interface ImageService {
 
     void deleteImageFolder(String category, Long ownerId);
 
+    UploadDto copyImageFromExisting(
+            String originalCoverUrl,
+            String originalThumbUrl,
+            String category,
+            Long newOwnerId,
+            String title
+    );
+
     void deleteImageFile(String imageUrl);
+
 }

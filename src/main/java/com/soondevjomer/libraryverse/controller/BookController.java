@@ -65,8 +65,17 @@ public class BookController {
             @RequestPart(value = "book") BookDto bookDto,
             @RequestPart(value = "file", required = false)MultipartFile file
     ) throws IOException {
-        log.info("RAW BOOK JSON: {}", bookDto);
+        log.info("RAW CREATE BOOK JSON: {}", bookDto);
         return new ResponseEntity<>(bookService.createBookToLibrary(bookDto, file), HttpStatus.CREATED);
+    }
+
+    @PostMapping(value = "/copy", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> copyBookToLibrary(
+            @RequestPart(value = "book") BookDto bookDto,
+            @RequestPart(value = "file", required = false)MultipartFile file
+    ) throws IOException {
+        log.info("RAW COPY BOOK JSON: {}", bookDto);
+        return new ResponseEntity<>(bookService.copyBookToLibrary(bookDto, file), HttpStatus.CREATED);
     }
 
     @PutMapping(value = "/{bookId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

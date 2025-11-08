@@ -1,5 +1,6 @@
 package com.soondevjomer.libraryverse.service.impl;
 
+import com.soondevjomer.libraryverse.constant.Role;
 import com.soondevjomer.libraryverse.dto.BookDto;
 import com.soondevjomer.libraryverse.dto.FilterDto;
 import com.soondevjomer.libraryverse.dto.PageModel;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -56,9 +58,19 @@ public class BookServiceImpl implements BookService {
     @Transactional
     @Override
     public BookDto getBookById(Long bookId) {
-        log.info("Incrementing view count for book {}", bookId);
         Book book = bookRepository.findById(bookId)
                 .orElseThrow(() -> new NoSuchElementException("Book not found"));
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        Optional<Library> optionalLibrary = libraryRepository.findByOwnerUsername(username);
+
+        optionalLibrary.ifPresent((library -> {
+            if (!library.getId().equals(book.getLibrary().getId())) {
+                log.info("The viewer is not own by the user so add view count");
+                book.setViewCount(book.getViewCount() + 1);
+            }
+        }));
+
         book.setViewCount(book.getViewCount() + 1);
         Book savedBook = bookRepository.save(book);
         return bookMapper.toDto(savedBook);
@@ -158,6 +170,65 @@ public class BookServiceImpl implements BookService {
         }
 
         return bookMapper.toDto(bookRepository.save(saved));
+    }
+
+    @Override
+    public BookDto copyBookToLibrary(BookDto bookDto, MultipartFile file) {
+        log.info("Copying existing book into library");
+
+        User currentUser = getCurrentUser();
+        Library library = libraryRepository.findByOwnerUsername(currentUser.getUsername())
+                .orElseThrow(() -> new NoSuchElementException("Library not found"));
+
+        Book copyBook = bookMapper.toEntity(bookDto);
+        copyBook.setId(null);
+        copyBook.setLibrary(library);
+        copyBook.setViewCount(0L);
+
+        Inventory inventory = Inventory.builder()
+                .availableStock(bookDto.getBookDetail().getQuantity() != null ? bookDto.getBookDetail().getQuantity() : 0)
+                .reservedStock(0)
+                .delivered(0)
+                .shipped(0)
+                .build();
+        copyBook.setInventory(inventory);
+
+        Book savedCopy = bookRepository.save(copyBook);
+        try {
+            if (file != null && !file.isEmpty()) {
+                log.info("New image provided, uploading fresh cover...");
+                UploadDto uploadDto = imageService.uploadBookCover(
+                        file,
+                        savedCopy.getBookDetail().getTitle(),
+                        savedCopy.getId()
+                );
+                savedCopy.getBookDetail().setBookCover(uploadDto.getFileUrl());
+                savedCopy.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
+
+            } else if (bookDto.getBookDetail() != null &&
+                    bookDto.getBookDetail().getBookCover() != null &&
+                    bookDto.getBookDetail().getBookThumbnailCover() != null) {
+
+                log.info("No new file uploaded — copying existing cover...");
+                UploadDto copyUpload = imageService.copyImageFromExisting(
+                        bookDto.getBookDetail().getBookCover(),
+                        bookDto.getBookDetail().getBookThumbnailCover(),
+                        "book-covers",
+                        savedCopy.getId(),
+                        savedCopy.getBookDetail().getTitle()
+                );
+                savedCopy.getBookDetail().setBookCover(copyUpload.getFileUrl());
+                savedCopy.getBookDetail().setBookThumbnailCover(copyUpload.getThumbnailFileUrl());
+            } else {
+                log.warn("No image found in original book — skipping image copy.");
+            }
+
+        } catch (Exception e) {
+            log.error("Book copy image handling failed: {}", e.getMessage(), e);
+            imageService.deleteImageFolder("book-covers", savedCopy.getId());
+        }
+
+        return bookMapper.toDto(bookRepository.save(savedCopy));
     }
 
     private User getCurrentUser() {

@@ -64,6 +64,7 @@ public class BookMapper {
         return BookDto.builder()
                 .id(book.getId())
                 .libraryId(book.getLibrary().getId())
+                .libraryName(book.getLibrary().getName())
                 .isbn(book.getIsbn())
                 .bookDetail(detailDto)
                 .inventory(inventoryDto)

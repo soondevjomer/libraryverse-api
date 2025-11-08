@@ -222,4 +222,63 @@ public class ImageServiceImpl implements ImageService {
         }
     }
 
+    @Override
+    public UploadDto copyImageFromExisting(
+            String originalCoverUrl,
+            String originalThumbUrl,
+            String category,
+            Long newOwnerId,
+            String title
+    ) {
+        try {
+            // Resolve source file paths
+            String baseUploadDir = System.getProperty("user.dir") + "/uploads/";
+            String newFolder = baseUploadDir + category + "/" + newOwnerId + "/";
+            Files.createDirectories(Paths.get(newFolder));
+
+            // Build safe filenames
+            String safeTitle = title.trim().replaceAll("[^a-zA-Z0-9-_]", "_").toLowerCase();
+            String newCoverName = safeTitle + "_copy_" + System.currentTimeMillis() + ".jpg";
+            String newThumbName = safeTitle + "_copy_thumb_" + System.currentTimeMillis() + ".jpg";
+
+            // Convert the original public URLs to local file system paths
+            Path originalCoverPath = Paths.get(baseUploadDir, originalCoverUrl.replaceFirst("^/files/", ""));
+            Path originalThumbPath = Paths.get(baseUploadDir, originalThumbUrl.replaceFirst("^/files/", ""));
+
+            Path newCoverPath = Paths.get(newFolder, newCoverName);
+            Path newThumbPath = Paths.get(newFolder, newThumbName);
+
+            // Copy existing files
+            if (Files.exists(originalCoverPath)) {
+                Files.copy(originalCoverPath, newCoverPath, StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                log.warn("Original cover file not found: {}", originalCoverPath);
+            }
+
+            if (Files.exists(originalThumbPath)) {
+                Files.copy(originalThumbPath, newThumbPath, StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                log.warn("Original thumbnail file not found: {}", originalThumbPath);
+            }
+
+            // Construct new public URLs
+            String newPublicCoverUrl = "/files/" + category + "/" + newOwnerId + "/" + newCoverName;
+            String newPublicThumbUrl = "/files/" + category + "/" + newOwnerId + "/" + newThumbName;
+
+            log.info("Copied image files → {}", newPublicCoverUrl);
+
+            return UploadDto.builder()
+                    .fileUrl(newPublicCoverUrl)
+                    .thumbnailFileUrl(newPublicThumbUrl)
+                    .fileName(newCoverName)
+                    .folderPath(newFolder)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Failed to copy existing image: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to copy existing image", e);
+        }
+    }
+
+
 }
