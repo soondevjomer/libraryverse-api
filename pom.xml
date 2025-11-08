@@ -34,7 +34,8 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
-		<dependency>
+
+        <dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
@@ -110,7 +111,33 @@
             <artifactId>imageio-webp</artifactId>
             <version>3.12.0</version>
         </dependency>
-	</dependencies>
+
+        <!-- flyway -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+
+        <!-- flyway mysql -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
+        <!--
+       added because it shows this;
+       Vulnerability found in dependency:
+       CVE-2025-11226
+       6.9
+       Transitive Conditional processing of logback.xml configuration file, in conjunction with Spring Framework and Janino
+        -->
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-core</artifactId>
+            <version>1.5.19</version>
+        </dependency>
+
+    </dependencies>
 
 	<build>
 		<plugins>
