@@ -24,9 +24,9 @@ public class OrderItem {
     private int quantity;
     private BigDecimal boughtAtPrice;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     private Book book;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     private StoreOrder storeOrder;
 }
