@@ -180,39 +180,34 @@ public class BookServiceImpl implements BookService {
         copyBook.setInventory(inventory);
 
         Book savedCopy = bookRepository.save(copyBook);
-        try {
-            if (file != null && !file.isEmpty()) {
-                log.info("New image provided, uploading fresh cover...");
-                UploadDto uploadDto = imageService.uploadBookCover(
-                        file,
-                        savedCopy.getBookDetail().getTitle(),
-                        savedCopy.getId()
-                );
-                savedCopy.getBookDetail().setBookCover(uploadDto.getFileUrl());
-                savedCopy.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
+        if (file != null && !file.isEmpty()) {
+            log.info("New image provided, uploading fresh cover...");
+            UploadDto uploadDto = imageService.uploadBookCover(
+                    file,
+                    savedCopy.getBookDetail().getTitle(),
+                    savedCopy.getId()
+            );
+            savedCopy.getBookDetail().setBookCover(uploadDto.getFileUrl());
+            savedCopy.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
 
-            } else if (bookDto.getBookDetail() != null &&
-                    bookDto.getBookDetail().getBookCover() != null &&
-                    bookDto.getBookDetail().getBookThumbnailCover() != null) {
+        } else if (bookDto.getBookDetail() != null &&
+                bookDto.getBookDetail().getBookCover() != null &&
+                bookDto.getBookDetail().getBookThumbnailCover() != null) {
 
-                log.info("No new file uploaded — copying existing cover...");
-                UploadDto copyUpload = imageService.copyImageFromExisting(
-                        bookDto.getBookDetail().getBookCover(),
-                        bookDto.getBookDetail().getBookThumbnailCover(),
-                        "book-covers",
-                        savedCopy.getId(),
-                        savedCopy.getBookDetail().getTitle()
-                );
-                savedCopy.getBookDetail().setBookCover(copyUpload.getFileUrl());
-                savedCopy.getBookDetail().setBookThumbnailCover(copyUpload.getThumbnailFileUrl());
-            } else {
-                log.warn("No image found in original book — skipping image copy.");
-            }
-
-        } catch (Exception e) {
-            log.error("Book copy image handling failed: {}", e.getMessage(), e);
-            imageService.deleteImageFolder("book-covers", savedCopy.getId());
+            log.info("No new file uploaded — copying existing cover...");
+            UploadDto copyUpload = imageService.copyImageFromExisting(
+                    bookDto.getBookDetail().getBookCover(),
+                    bookDto.getBookDetail().getBookThumbnailCover(),
+                    "book-covers",
+                    savedCopy.getId(),
+                    savedCopy.getBookDetail().getTitle()
+            );
+            savedCopy.getBookDetail().setBookCover(copyUpload.getFileUrl());
+            savedCopy.getBookDetail().setBookThumbnailCover(copyUpload.getThumbnailFileUrl());
+        } else {
+            log.warn("No image found in original book — skipping image copy.");
         }
+
 
         return bookMapper.toDto(bookRepository.save(savedCopy));
     }
