@@ -21,30 +21,61 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
     private final Cloudinary cloudinary;
 
     private UploadDto uploadToCloudinary(MultipartFile file, String folder) {
-        try {
-            log.info("Uploading image to Cloudinary folder: {}", folder);
+        log.info("Starting uploadToCloudinary for folder: {}", folder);
 
-            // Upload original
-            var uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+        if (file == null) {
+            log.error("File is null, cannot upload to Cloudinary");
+            return UploadDto.builder().build();
+        }
+
+        log.info("File details - name: {}, size: {}, contentType: {}",
+                file.getOriginalFilename(), file.getSize(), file.getContentType());
+
+        try {
+            if (file.getSize() == 0) {
+                log.error("File size is 0, upload aborted.");
+                return UploadDto.builder().build();
+            }
+
+            log.info("Uploading image bytes to Cloudinary folder: {}", folder);
+
+            Map<String, Object> uploadOptions = ObjectUtils.asMap(
                     "folder", folder,
                     "resource_type", "image",
                     "format", "jpg",
                     "overwrite", true,
                     "unique_filename", true
-            ));
+            );
+
+            log.info("Upload options: {}", uploadOptions);
+
+            var uploadResult = cloudinary.uploader().upload(file.getBytes(), uploadOptions);
+
+            if (uploadResult == null) {
+                log.error("Upload result is null, Cloudinary did not return a response");
+                return UploadDto.builder().build();
+            }
+
+            log.info("Upload completed, raw Cloudinary response: {}", uploadResult);
 
             String fileUrl = (String) uploadResult.get("secure_url");
             String publicId = (String) uploadResult.get("public_id");
 
-            log.info("Uploaded result: {}", uploadResult);
+            log.info("Extracted URLs - secure_url: {}, public_id: {}", fileUrl, publicId);
+
+            if (fileUrl == null || publicId == null) {
+                log.error("Upload failed: missing secure_url or public_id in response");
+                return UploadDto.builder().build();
+            }
 
             String thumbnailUrl = cloudinary.url()
                     .transformation(new Transformation().width(300).height(450).crop("fill"))
                     .secure(true)
                     .generate(publicId + ".jpg");
 
-            log.info("Uploaded image to Cloudinary: {}", fileUrl);
-            log.info("Generated thumbnail: {}", thumbnailUrl);
+            log.info("Generated thumbnail URL: {}", thumbnailUrl);
+
+            log.info("Successfully uploaded to Cloudinary: {}", fileUrl);
 
             return UploadDto.builder()
                     .fileName(publicId)
@@ -54,13 +85,11 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Failed to upload image to Cloudinary folder {}: {}", folder, e.getMessage(), e);
-
-            // Clean up folder if something went wrong
+            log.error("Exception during Cloudinary upload to folder {}: {}", folder, e.getMessage(), e);
             try {
                 deleteImageFolder(folder, null);
             } catch (Exception cleanupError) {
-                log.error("Cleanup after failed Cloudinary upload failed: {}", cleanupError.getMessage());
+                log.error("Cleanup after failed upload failed: {}", cleanupError.getMessage(), cleanupError);
             }
             return UploadDto.builder()
                     .fileName(null)
@@ -70,6 +99,7 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
                     .build();
         }
     }
+
 
     @Override
     public UploadDto uploadBookCover(MultipartFile file, String bookTitle, Long bookId) {
