@@ -34,7 +34,7 @@ public class BookDetail {
     private String bookCover;
     private String bookThumbnailCover;
 
-    @ManyToMany(cascade = CascadeType.ALL)
+    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(
             name = "book_detail_genre",
             joinColumns = @JoinColumn(name = "book_detail_id"),
@@ -42,7 +42,7 @@ public class BookDetail {
     )
     private List<Genre> genres = new ArrayList<>();
 
-    @ManyToMany(cascade = CascadeType.ALL)
+    @ManyToMany(fetch = FetchType.EAGER, cascade = CascadeType.ALL)
     @JoinTable(
             name = "book_detail_author",
             joinColumns = @JoinColumn(name = "book_detail_id"),
