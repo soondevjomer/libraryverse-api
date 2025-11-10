@@ -28,15 +28,4 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
       LEFT JOIN b.inventory i
     """)
     Double findMaxPopularityScore();
-
-    @EntityGraph(attributePaths = {
-            "bookDetail",
-            "bookDetail.genres",
-            "bookDetail.authors",
-            "bookDetail.publisher",
-            "inventory"
-    })
-    Page<Book> findAllByPage(Specification<Book> spec, Pageable pageable);
-
-
 }

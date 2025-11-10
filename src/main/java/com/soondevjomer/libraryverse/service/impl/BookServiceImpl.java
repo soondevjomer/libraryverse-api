@@ -44,7 +44,7 @@ public class BookServiceImpl implements BookService {
         log.info("Searching for books...");
         var spec = BookSpecification.filterBooks(filterDto);
         var pageable = PageRequest.of(filterDto.getPage(), filterDto.getSize());
-        Page<Book> bookPage = bookRepository.findAllByPage(spec, pageable);
+        Page<Book> bookPage = bookRepository.findAll(spec, pageable);
         List<BookDto> bookDtos = bookPage.map(bookMapper::toDto).toList();
         return new PageModel<>(
                 bookDtos,

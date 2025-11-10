@@ -46,7 +46,7 @@ public class Book {
     @OneToMany(mappedBy = "cartedBook", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Cart> carts;
 
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToOne(cascade = CascadeType.ALL)
     @JoinColumn(name = "inventory_id", referencedColumnName = "inventory_id")
     private Inventory inventory;
 
