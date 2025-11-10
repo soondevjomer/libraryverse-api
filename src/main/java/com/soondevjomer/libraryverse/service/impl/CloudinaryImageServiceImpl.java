@@ -36,6 +36,8 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
             String fileUrl = (String) uploadResult.get("secure_url");
             String publicId = (String) uploadResult.get("public_id");
 
+            log.info("Uploaded result: {}", uploadResult);
+
             String thumbnailUrl = cloudinary.url()
                     .transformation(new Transformation().width(300).height(450).crop("fill"))
                     .secure(true)
