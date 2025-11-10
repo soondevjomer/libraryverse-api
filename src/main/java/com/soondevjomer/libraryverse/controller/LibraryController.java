@@ -27,7 +27,7 @@ public class LibraryController {
     @GetMapping
     public ResponseEntity<?> getLibraryByPage(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "9") int size,
+            @RequestParam(defaultValue = "8") int size,
             @RequestParam(defaultValue = "id") String sortField,
             @RequestParam(defaultValue = "asc") String sortOrder,
             @RequestParam(required = false) String search,

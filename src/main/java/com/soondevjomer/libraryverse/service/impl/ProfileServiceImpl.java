@@ -56,20 +56,13 @@ public class ProfileServiceImpl implements ProfileService {
 
         log.info("Try uploading user image");
         if (file != null && !file.isEmpty()) {
-            try {
-                UploadDto upload = imageService.uploadProfileImage(
-                        file,
-                        currentUser.getId().toString(),
-                        currentUser.getId()
-                );
-                currentUser.setImage(upload.getFileUrl());
-                currentUser.setImageThumbnail(upload.getThumbnailFileUrl());
-            } catch (Exception e) {
-                log.error("Image upload failed, rolling back profile image creation: {}", e.getMessage());
-                imageService.deleteImageFolder("profile-images", currentUser.getId());
-                log.info("Failed to upload profile image, cause of {}", e.getMessage());
-            }
-
+            UploadDto upload = imageService.uploadProfileImage(
+                    file,
+                    currentUser.getId().toString(),
+                    currentUser.getId()
+            );
+            currentUser.setImage(upload.getFileUrl());
+            currentUser.setImageThumbnail(upload.getThumbnailFileUrl());
         }
 
         currentUser.setUsername(profileDto.getUsername());

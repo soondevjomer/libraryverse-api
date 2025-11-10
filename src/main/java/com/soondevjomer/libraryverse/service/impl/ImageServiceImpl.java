@@ -1,9 +1,12 @@
 package com.soondevjomer.libraryverse.service.impl;
 
 import com.soondevjomer.libraryverse.dto.UploadDto;
+import com.soondevjomer.libraryverse.service.CloudinaryService;
 import com.soondevjomer.libraryverse.service.ImageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,6 +23,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 
 @Slf4j
+@Primary
 @Service
 @RequiredArgsConstructor
 public class ImageServiceImpl implements ImageService {
@@ -27,10 +31,23 @@ public class ImageServiceImpl implements ImageService {
     private static final String BOOK_COVER_UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/book-covers/";
     private static final String LIBRARY_COVER_UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/library-covers/";
     private static final String PROFILE_IMAGE_UPLOAD_DIR = System.getProperty("user.dir") + "/uploads/profile-images/";
+    private final CloudinaryService cloudinaryService;
+    private static final String ONLINE_IMAGE_STORAGE = "cloudinary";
+
+    @Value("${storage}")
+    private String storage;
+
+    @Value("${storage.upload-dir:#{null}}")
+    private String uploadDir;
 
     @Override
     public UploadDto uploadBookCover(MultipartFile file, String bookTitle, Long bookId) {
         log.info("Uploading book cover");
+
+        if (ONLINE_IMAGE_STORAGE.equalsIgnoreCase(storage)) {
+            return cloudinaryService.uploadBookCover(file, bookTitle, bookId);
+        }
+
         return uploadImage(
                 file,
                 bookTitle,
@@ -43,7 +60,9 @@ public class ImageServiceImpl implements ImageService {
 
     @Override
     public UploadDto uploadLibraryCover(MultipartFile file, String libraryName, Long libraryId) {
-        log.info("Uploading library cover");
+        if (ONLINE_IMAGE_STORAGE.equalsIgnoreCase(storage)) {
+            return cloudinaryService.uploadLibraryCover(file, libraryName, libraryId);
+        }
         return uploadImage(
                 file,
                 libraryName,
@@ -57,6 +76,9 @@ public class ImageServiceImpl implements ImageService {
     @Override
     public UploadDto uploadProfileImage(MultipartFile file, String username, Long userId) {
         log.info("Uploading profile image");
+        if (ONLINE_IMAGE_STORAGE.equalsIgnoreCase(storage)) {
+            return cloudinaryService.uploadProfileImage(file, username, userId);
+        }
         return uploadImage(
                 file,
                 username,
@@ -119,7 +141,19 @@ public class ImageServiceImpl implements ImageService {
 
         } catch (IOException e) {
             log.error("Failed to save image: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to save image", e);
+            try {
+                // Extract category from publicPath, e.g. "book-covers", "library-covers"
+                String category = publicPath.split("/")[2]; // "/files/book-covers/1/" → "book-covers"
+                deleteImageFolder(category, ownerId);
+            } catch (Exception cleanupError) {
+                log.error("Failed to cleanup image folder after upload error: {}", cleanupError.getMessage());
+            }
+            return UploadDto.builder()
+                    .fileName(null)
+                    .fileUrl(null)
+                    .thumbnailFileUrl(null)
+                    .folderPath(null)
+                    .build();
         }
     }
 
@@ -279,6 +313,5 @@ public class ImageServiceImpl implements ImageService {
             throw new RuntimeException("Failed to copy existing image", e);
         }
     }
-
 
 }

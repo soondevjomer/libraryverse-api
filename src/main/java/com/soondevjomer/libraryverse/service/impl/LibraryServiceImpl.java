@@ -120,19 +120,13 @@ public class LibraryServiceImpl implements LibraryService {
                 .orElseThrow(() -> new AccessDeniedException("You are not authorized to update this library with ID: " + libraryId));
 
         if (file != null && !file.isEmpty()) {
-            try {
-                UploadDto uploadDto = imageService.uploadLibraryCover(
-                        file,
-                        existing.getName(),
-                        existing.getId()
-                );
-                existing.setLibraryCover(uploadDto.getFileUrl());
-                existing.setLibraryThumbnailCover(uploadDto.getThumbnailFileUrl());
-            } catch (Exception e) {
-                log.error("Image upload failed, rolling back library cover creation: {}", e.getMessage());
-                imageService.deleteImageFolder("library-covers", existing.getId());
-                log.info("Failed to upload library cover, cause of {}", e.getMessage());
-            }
+            UploadDto uploadDto = imageService.uploadLibraryCover(
+                    file,
+                    existing.getName(),
+                    existing.getId()
+            );
+            existing.setLibraryCover(uploadDto.getFileUrl());
+            existing.setLibraryThumbnailCover(uploadDto.getThumbnailFileUrl());
         }
 
         log.info("proceed updating library...");

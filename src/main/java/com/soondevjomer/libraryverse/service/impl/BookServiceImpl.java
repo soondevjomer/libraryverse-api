@@ -113,19 +113,12 @@ public class BookServiceImpl implements BookService {
         }
         log.info("is file null?: {}", file);
         if (file != null && !file.isEmpty()) {
-            try {
-                UploadDto uploadDto = imageService.uploadBookCover(
-                        file,
-                        existing.getBookDetail().getTitle(),
-                        existing.getId()
-                );
-                existing.getBookDetail().setBookCover(uploadDto.getFileUrl());
-                existing.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
-            } catch (Exception e) {
-                log.error("Image upload failed, rolling back book cover creation: {}", e.getMessage());
-                imageService.deleteImageFolder("book-covers", existing.getId());
-                log.info("Failed to upload book cover, cause of {}", e.getMessage());
-            }
+            UploadDto uploadDto = imageService.uploadBookCover(
+                    file,
+                    existing.getBookDetail().getTitle(),
+                    existing.getId());
+            existing.getBookDetail().setBookCover(uploadDto.getFileUrl());
+            existing.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
         }
 
         Book updatedBook = bookRepository.save(existing);
@@ -154,19 +147,12 @@ public class BookServiceImpl implements BookService {
         Book saved = bookRepository.save(book);
 
         if (file != null && !file.isEmpty()) {
-            try {
-                UploadDto uploadDto = imageService.uploadBookCover(
-                        file,
-                        saved.getBookDetail().getTitle(),
-                        saved.getId()
-                );
-                saved.getBookDetail().setBookCover(uploadDto.getFileUrl());
-                saved.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
-            } catch (Exception e) {
-                log.error("Image upload failed, rolling back book creation: {}", e.getMessage());
-                imageService.deleteImageFolder("book-covers", book.getId());
-                throw new RuntimeException("Failed to upload book cover");
-            }
+            UploadDto uploadDto = imageService.uploadBookCover(
+                    file,
+                    saved.getBookDetail().getTitle(),
+                    saved.getId());
+            saved.getBookDetail().setBookCover(uploadDto.getFileUrl());
+            saved.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
         }
 
         return bookMapper.toDto(bookRepository.save(saved));
