@@ -95,10 +95,14 @@ public class LibraryServiceImpl implements LibraryService {
 
     @Override
     public LibraryDto getLibraryById(Long libraryId) {
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
         Library library = libraryRepository.findById(libraryId).orElseThrow(() -> new RuntimeException("Library not found"));
+        Optional<Library> userLibrary = libraryRepository.findByOwnerUsername(username);
 
-        log.info("increment the view count of this library: {}", library.getName());
-        library.setViewCount(library.getViewCount() + 1);
+        if (userLibrary.isPresent() && !userLibrary.get().getId().equals(library.getId())) {
+            log.info("Increase view count of this library {}", library.getName());
+            library.setViewCount(library.getViewCount() + 1);
+        }
         Library savedLibrary = libraryRepository.save(library);
 
         log.info("give library by library id");

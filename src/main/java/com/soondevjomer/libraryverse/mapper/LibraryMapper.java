@@ -30,6 +30,7 @@ public class LibraryMapper {
                 .libraryCover(library.getLibraryCover())
                 .libraryThumbnailCover(library.getLibraryThumbnailCover())
                 .popularityScore(libraryPopularDto.getPopularityScore())
+                .roundedRating(libraryPopularDto.getRoundedRating())
                 .build();
     }
 

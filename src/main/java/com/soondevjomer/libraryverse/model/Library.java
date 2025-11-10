@@ -34,6 +34,8 @@ public class Library {
 
     private String address;
     private String contactNumber;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     @OneToMany(mappedBy = "library", cascade = CascadeType.ALL, orphanRemoval = true)

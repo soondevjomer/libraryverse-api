@@ -24,14 +24,13 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class PopularityServiceImpl implements PopularityService {
     private final BookRepository bookRepository;
-    private final InventoryRepository inventoryRepository;
     private final LibraryRepository libraryRepository;
 
     @Override
     public PopularityDto calcBookPopulariyScore(Long bookid) {
         log.info("Calculating book popularity score...");
-        double VIEWS_WEIGHT = 0.2;
-        double SALES_WEIGHT = 0.8;
+        double VIEWS_WEIGHT = 0.1;
+        double SALES_WEIGHT = 0.9;
 
         Book book = bookRepository.findById(bookid)
                 .orElseThrow(()->new NoSuchElementException("Book not found"));
@@ -104,13 +103,19 @@ public class PopularityServiceImpl implements PopularityService {
                 + (totalRevenue * REVENUE_WEIGHT)
                 + (totalSalesCount * SALES_WEIGHT);
 
-        BigDecimal roundedScore = BigDecimal.valueOf(popularityScore)
-                .setScale(2, RoundingMode.HALF_UP);
+        Double maxPopularityScore = libraryRepository.findMaxPopularityScore();
+        if (maxPopularityScore == null || maxPopularityScore == 0) {
+            maxPopularityScore = 1.0;
+        }
+
+        double normalizedScore = (popularityScore / maxPopularityScore) * 5.0;
+        double roundedRating = Math.round(normalizedScore * 10.0) / 10.0;
 
         log.info("Calculated popularity score for library {}: {}", libraryId, popularityScore);
 
         return PopularityDto.builder()
-                .popularityScore(roundedScore.doubleValue())
+                .popularityScore(popularityScore)
+                .roundedRating(roundedRating)
                 .build();
     }
 }

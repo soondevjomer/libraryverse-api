@@ -29,4 +29,6 @@ public class LibraryDto {
     private String ownerName;
 
     private double popularityScore;
+
+    private double roundedRating;
 }
