@@ -111,8 +111,8 @@ public class BookServiceImpl implements BookService {
                 inventoryService.updateStock(existing, bookDto.getBookDetail().getQuantity());
             }
         }
-        log.info("is file null?: {}", file);
         if (file != null && !file.isEmpty()) {
+            log.info("update->file is not empty");
             UploadDto uploadDto = imageService.uploadBookCover(
                     file,
                     existing.getBookDetail().getTitle(),
@@ -147,6 +147,7 @@ public class BookServiceImpl implements BookService {
         Book saved = bookRepository.save(book);
 
         if (file != null && !file.isEmpty()) {
+            log.info("create->file is not empty");
             UploadDto uploadDto = imageService.uploadBookCover(
                     file,
                     saved.getBookDetail().getTitle(),

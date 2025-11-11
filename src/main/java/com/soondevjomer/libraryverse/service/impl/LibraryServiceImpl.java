@@ -130,6 +130,7 @@ public class LibraryServiceImpl implements LibraryService {
                 .orElseThrow(() -> new AccessDeniedException("You are not authorized to update this library with ID: " + libraryId));
 
         if (file != null && !file.isEmpty()) {
+            log.info("update->file is not empty");
             UploadDto uploadDto = imageService.uploadLibraryCover(
                     file,
                     existing.getName(),
