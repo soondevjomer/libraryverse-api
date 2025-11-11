@@ -33,15 +33,5 @@ public interface LibraryRepository extends JpaRepository<Library, Long>, JpaSpec
     ) AS scores
     """, nativeQuery = true)
     Double findMaxPopularityScore();
-
-    @Query("""
-       SELECT l FROM Library l
-       LEFT JOIN FETCH l.books b
-       LEFT JOIN FETCH l.storeOrders o
-       LEFT JOIN FETCH b.inventory
-       WHERE l.id = :libraryId
-       """)
-    Optional<Library> findByIdWithRelations(@Param("libraryId") Long libraryId);
-
 }
 

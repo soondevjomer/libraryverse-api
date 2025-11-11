@@ -31,12 +31,4 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
     """)
     Double findMaxPopularityScore();
 
-    @Query("""
-       SELECT b FROM Book b
-       LEFT JOIN FETCH b.inventory
-       LEFT JOIN FETCH b.library
-       WHERE b.id = :bookId
-       """)
-    Optional<Book> findByIdWithRelations(@Param("bookId") Long bookId);
-
 }
