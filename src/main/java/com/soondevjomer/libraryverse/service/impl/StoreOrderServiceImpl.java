@@ -10,6 +10,7 @@ import com.soondevjomer.libraryverse.service.StoreOrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.*;
@@ -23,6 +24,7 @@ public class StoreOrderServiceImpl implements StoreOrderService {
     private final StoreOrderRepository storeOrderRepository;
     private final LibraryRepository libraryRepository;
 
+    @Transactional(readOnly = true)
     @Override
     public List<LibrarianSaleDto> getSalesByLibrarian() {
 
@@ -63,6 +65,7 @@ public class StoreOrderServiceImpl implements StoreOrderService {
         }).toList();
     }
 
+    @Transactional(readOnly = true)
     @Override
     public CustomerCountAndTopDto getCustomerStatForLibrary() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -136,6 +139,7 @@ public class StoreOrderServiceImpl implements StoreOrderService {
         return dto;
     }
 
+    @Transactional(readOnly = true)
     @Override
     public SaleStatDto getSaleStatForLibrary() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -241,6 +245,7 @@ public class StoreOrderServiceImpl implements StoreOrderService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     @Override
     public OrderStatDto getOrderStatForLibrary() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
