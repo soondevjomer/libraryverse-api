@@ -48,12 +48,12 @@ public class LibraryServiceImpl implements LibraryService {
 
     @Override
     public LibraryStatDto getLibraryStat() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        String username = getCurrentUser();
 
         Optional<Library> optionalLibrary = libraryRepository.findByOwnerUsername(username);
-
         if (optionalLibrary.isEmpty()) {
             // Return safe default stats for a new library
+            log.info("library stat - library is empty or invalid library id that's why get nothing");
             return LibraryStatDto.builder()
                     .totalBooks(0)
                     .totalLowOnStock(0)

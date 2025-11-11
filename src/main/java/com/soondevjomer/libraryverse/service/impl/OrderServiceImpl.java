@@ -17,6 +17,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,21 +44,19 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto orderRequestDto) {
-        log.info("ORDER SERVICE START");
-        log.info("ORDER SERVICE PAYMENT METHOD: {}", orderRequestDto.getPaymentMethod());
+        log.info("#OrderService->createOrder: Creating order with request {}", orderRequestDto);
         User currentUser = getCurrentUser();
 
-        log.info("get/create customer");
         Customer customer = customerRepository
                 .findByUser(currentUser)
                 .map(existingCustomer -> {
-                    // update existing customer
+                    log.info("#OrderService->createOrder: Customer already exist then update");
                     existingCustomer.setAddress(orderRequestDto.getAddress());
                     existingCustomer.setContactNumber(orderRequestDto.getContactNumber());
                     return existingCustomer;
                 })
                 .orElseGet(() -> {
-                    // create a new customer
+                    log.info("#OrderService->createOrder: Creating customer object");
                     return customerRepository.save(
                             Customer.builder()
                                     .user(currentUser)
@@ -67,92 +66,93 @@ public class OrderServiceImpl implements OrderService {
                     );
                 });
 
-        log.info("get/create customer id: {}", customer.getId());
+        log.info("#OrderService->createOrder: Creating order for customer {}", customer.getUser().getName());
 
         PaymentMethod pm = PaymentMethod.valueOf(orderRequestDto.getPaymentMethod());
         PaymentStatus ps = pm == PaymentMethod.COD ? PaymentStatus.PENDING : PaymentStatus.PAID;
-        log.info("payment method {} and status {}", pm, ps);
 
         // Build base order (not yet saved)
         Order order = orderMapper.toOrder(orderRequestDto, customer);
-        log.info("check order is created by its customer id {}", order.getCustomer().getId());
+        log.info("#OrderService->createOrder: Check order is created by this customer id {}", order.getCustomer().getId());
 
         Map<Library, List<OrderItemDto>> itemsByLibrary = groupItemsByLibrary(orderRequestDto.getOrderItemDtos());
-        log.info("group items by library isEmpty? {}", itemsByLibrary.isEmpty());
+        log.info("#OrderService->createOrder: Group items by library isEmpty? {}", itemsByLibrary.isEmpty());
 
         BigDecimal totalAmount = BigDecimal.ZERO;
 
         for (var entry : itemsByLibrary.entrySet()) {
-            log.info("looping itemsByLibrary entry set...");
+            log.info("#OrderService->createOrder: Looping itemsByLibrary entry set...");
             Library library = entry.getKey();
             List<OrderItemDto> itemDtos = entry.getValue();
 
             StoreOrder storeOrder = orderMapper.toStoreOrder(order, library);
             storeOrder.setPaymentStatus(ps);
-            log.info("check store order created by its library id {}", storeOrder.getLibrary().getId());
+            log.info("#OrderService->createOrder: Check store order created by its library id {}", storeOrder.getLibrary().getId());
 
             BigDecimal subtotal = BigDecimal.ZERO;
 
             for (OrderItemDto itemDto : itemDtos) {
-                log.info("looping through item dtos...");
+                log.info("#OrderService->createOrder: Looping through item dtos...");
                 Book book = bookRepository.findById(itemDto.getBookId())
                         .orElseThrow(() -> new NoSuchElementException("Book not found: " + itemDto.getBookId()));
 
                 itemDto.setBookName(book.getBookDetail().getTitle());
                 itemDto.setPrice(book.getBookDetail().getPrice());
-                log.info("item dto bookname {} and price {} set", itemDto.getBookName(), itemDto.getPrice());
+                log.info("#OrderService->createOrder: Item dto bookname {} and price {} set", itemDto.getBookName(), itemDto.getPrice());
 
-                log.info("reserve the stock");
+                log.info("#OrderService->createOrder: Reserve the stock");
                 inventoryService.reservedStock(book, itemDto.getQuantity());
 
                 OrderItem orderItem = orderMapper.toOrderItem(storeOrder, book, itemDto);
-                log.info("check order item created by its bought at price {}", orderItem.getBoughtAtPrice());
+                log.info("#OrderService->createOrder: Check order item created by its bought at price {}", orderItem.getBoughtAtPrice());
 
                 subtotal = subtotal.add(itemDto.getPrice().multiply(BigDecimal.valueOf(itemDto.getQuantity())));
-                log.info("subtotal computed: {}", subtotal);
+                log.info("#OrderService->createOrder: Subtotal computed: {}", subtotal);
             }
 
             storeOrder.setSubtotal(subtotal);
-            log.info("store order set its subtotal");
+            log.info("#OrderService->createOrder: Store order set its subtotal");
 
             totalAmount = totalAmount.add(subtotal);
-            log.info("total amount computed: {}", totalAmount);
+            log.info("#OrderService->createOrder: Total amount computed: {}", totalAmount);
         }
 
         order.setTotalAmount(totalAmount);
-        log.info("saving order now");
+        log.info("#OrderService->createOrder: Saving order now");
         Order saved = orderRepository.save(order);
-        log.info("check order saved by id {}", saved.getId());
+        log.info("#OrderService->createOrder: Check order saved by id {}", saved.getId());
 
         List<Long> orderedBookIds = orderRequestDto.getOrderItemDtos().stream()
                 .map(OrderItemDto::getBookId)
                 .toList();
-        log.info("ordered book count: {}", orderedBookIds.size());
+        log.info("#OrderService->createOrder: Ordered book count: {}", orderedBookIds.size());
         cartRepository.deleteByCartByAndCartedBookIdIn(currentUser, orderedBookIds);
 
-        log.info("OrderResponse constructed");
+        log.info("#OrderService->createOrder: OrderResponse constructed");
         return orderMapper.toOrderResponse(saved);
     }
 
-
     @Override
     public void markAsShipped(Long storeOrderId) {
-        log.info("MARKING AS SHIPPED THE STORE ID: {}", storeOrderId);
+        log.info("#OrderService->markAsShipped: Marking as shipped {}", storeOrderId);
         User currentUser = getCurrentUser();
+
         StoreOrder storeOrder = storeOrderRepository.findById(storeOrderId)
                 .orElseThrow(() -> new NoSuchElementException("Store order not found"));
 
-        // ensure the library owner is current user
         if (!storeOrder.getLibrary().getOwner().getId().equals(currentUser.getId())) {
-            throw new AccessDeniedException("You are not owner of this library");
+            log.info("#OrderService->markAsShipped: Access denied");
+            throw new AccessDeniedException("You did not have permission to make this request");
         }
 
         if (storeOrder.getOrderStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("Cannot ship order in status: " + storeOrder.getOrderStatus());
+            log.info("#OrderService->markAsShipped: Cannot ship order in status: {}", storeOrder.getOrderStatus().toString());
+            throw new IllegalStateException("Cannot ship an order that is not pending");
         }
 
         // UPDATE INVENTORY
         for (OrderItem item : storeOrder.getOrderItems()) {
+            log.info("#OrderService->markAsShipped: Ship the order");
             inventoryService.shipStock(item.getBook(), item.getQuantity());
         }
 
@@ -162,6 +162,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void cancelOrder(Long storeOrderId) {
+        log.info("#OrderService->cancelOrder: Cancel order");
         User currentUser = getCurrentUser();
         StoreOrder storeOrder = storeOrderRepository.findById(storeOrderId)
                 .orElseThrow(() -> new NoSuchElementException("Store order not found"));
@@ -171,19 +172,22 @@ public class OrderServiceImpl implements OrderService {
                 .getCustomer()
                 .getUser();
 
-        log.info("Allow if the current user is either the library owner or the customer who placed the order");
+        log.info("#OrderService->cancelOrder: Allow if the current user is either the library owner or the customer who placed the order");
         boolean isLibraryOwner = libraryOwner != null && libraryOwner.getId().equals(currentUser.getId());
         boolean isOrderCustomer = orderCustomer != null && orderCustomer.getId().equals(currentUser.getId());
 
         if (!isLibraryOwner && !isOrderCustomer) {
+            log.info("#OrderService->cancelOrder: You are not authorized to cancel this order");
             throw new AccessDeniedException("You are not authorized to cancel this order");
         }
 
         if (storeOrder.getOrderStatus() == OrderStatus.SHIPPED) {
-            throw new IllegalStateException("Cannot cancel shipped order");
+            log.info("#OrderService->cancelOrder: Cannot cancel shipped order");
+            throw new IllegalStateException("Shipped ordered cannot be cancel");
         }
 
         for (OrderItem item : storeOrder.getOrderItems()) {
+            log.info("#OrderService->cancelOrder: Releasing reserve stock, cancel order success");
             inventoryService.releaseReserveStock(item.getBook(), item.getQuantity());
         }
 
@@ -194,19 +198,23 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @Override
     public void markAsDelivered(Long storeOrderId) {
+        log.info("#OrderService->markAsDelivered: Mark order as delivered");
         User currentUser = getCurrentUser();
+
         StoreOrder storeOrder = storeOrderRepository.findById(storeOrderId)
                 .orElseThrow(() -> new NoSuchElementException("Store order not found"));
-        log.info("ensure the library owner is current user");
+
         if (!storeOrder.getLibrary().getOwner().getId().equals(currentUser.getId())) {
             throw new AccessDeniedException("You are not owner of this library");
         }
 
         if (!storeOrder.getOrderStatus().equals(OrderStatus.SHIPPED)) {
-            throw new RuntimeException("Only shipped orders can be marked as delivered");
+            log.info("#OrderService->markAsDelivered: Only shipped orders can be marked as delivered");
+            throw new IllegalStateException("Only shipped orders can be marked as delivered");
         }
 
         for (OrderItem item : storeOrder.getOrderItems()) {
+            log.info("#OrderService->markAsDelivered: Mark the item as delivered");
             inventoryService.deliverStock(item.getBook(), item.getQuantity());
         }
 
@@ -270,7 +278,6 @@ public class OrderServiceImpl implements OrderService {
         );
     }
 
-
     private User getCurrentUser() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
@@ -288,7 +295,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void updateOrderPaymentStatusToPaid(Long orderId) {
-        log.info("because a store order mark as delivered/paid so we need to update if an all of store orders of order is paid");
+        log.info("#OrderService->updateOrderPaymentStatusToPaid: Updating if order payment to paid");
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new NoSuchElementException("No order found"));
 
@@ -297,7 +305,7 @@ public class OrderServiceImpl implements OrderService {
         );
 
         if (isAllPaid) {
-            log.info("all store order is paid so the order must be mark as paid");
+            log.info("#OrderService->updateOrderPaymentStatusToPaid: All store order is paid so the order must be mark as paid");
             if (order.getPaymentStatus().equals(PaymentStatus.PAID)) {
                 log.info("order is already mark as paid");
             } else if (order.getPaymentStatus().equals(PaymentStatus.PENDING)) {
@@ -326,12 +334,10 @@ public class OrderServiceImpl implements OrderService {
         return storeOrderRepository.findByOrder_Customer(customer, pageable);
     }
 
-    private Page<StoreOrder> getStoreOrdersForAdmin(String status, Pageable pageable) {
-        if (status != null && !status.isBlank()) {
-            OrderStatus orderStatus = OrderStatus.valueOf(status.toUpperCase());
-            return storeOrderRepository.findByOrderStatus(orderStatus, pageable);
-        }
-        return storeOrderRepository.findAll(pageable);
+    private String getCurrentUserUsername() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return  (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName()))
+                ? auth.getName()
+                : null;
     }
-
 }

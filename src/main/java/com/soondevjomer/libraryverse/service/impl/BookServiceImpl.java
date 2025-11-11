@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,10 +35,10 @@ public class BookServiceImpl implements BookService {
     private final BookRepository bookRepository;
     private final LibraryRepository libraryRepository;
     private final UserRepository userRepository;
-    private final InventoryService inventoryService;
     private final BookMapper bookMapper;
-    private final InventoryRepository inventoryRepository;
     private final ImageService imageService;
+    private final CloudinaryService cloudinaryService;
+
 
     @Override
     public PageModel<List<BookDto>> getBookByPage(FilterDto filterDto) {
@@ -58,85 +59,130 @@ public class BookServiceImpl implements BookService {
     @Transactional
     @Override
     public BookDto getBookById(Long bookId) {
-        Book book = bookRepository.findById(bookId)
-                .orElseThrow(() -> new NoSuchElementException("Book not found"));
+        log.info("#BookService->getBookById: Get book by id");
+        Optional<Book> optionalBook = bookRepository.findById(bookId);
+        if (optionalBook.isEmpty()) {
+            return new BookDto();
+        }
 
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        Optional<Library> optionalLibrary = libraryRepository.findByOwnerUsername(username);
+        Book book = optionalBook.get();
 
-        optionalLibrary.ifPresent((library -> {
-            if (!library.getId().equals(book.getLibrary().getId())) {
-                log.info("The viewer is not own by the user so add view count");
+        String username = getCurrentUserUsername();
+        if (username==null) {
+            log.info("#BookService->getBookById: Anonymous is requesting for book {}", book.getBookDetail().getTitle());
+            return bookMapper.toDto(book);
+        }
+        // Username has value then requester is a logged-in user
+        log.info("#BookService->getBookById: User {} is requesting for book {}", username, book.getBookDetail().getTitle());
+
+        // Now check if the logged user doesn't own the book so it doesn't increase its view count
+        Optional<User> optionalUser = userRepository.findByUsername(username);
+
+        optionalUser.ifPresent((user)->{
+            log.info("#BookService->getBookById: Proceed adding book view count");
+            if (!book.getLibrary().getOwner().equals(user)) {
+                log.info("#BookService->getBookById: The request is not the owner add view count");
                 book.setViewCount(book.getViewCount() + 1);
             }
-        }));
+        });
 
-        book.setViewCount(book.getViewCount() + 1);
-        Book savedBook = bookRepository.save(book);
-        return bookMapper.toDto(savedBook);
+        log.info("#BookService->getBookById: Returning requested book");
+        return bookMapper.toDto(bookRepository.save(book));
     }
 
     @Transactional
     @Override
     public BookDto updateBookById(Long bookId, BookDto bookDto, MultipartFile file) {
-        Book existing = bookRepository.findById(bookId)
-                .orElseThrow(() -> new NoSuchElementException("Book not found"));
+        log.info("#BookService->updateBookById: Update book by id");
 
-        User currentUser = getCurrentUser();
-        Library userLibrary = libraryRepository.findByOwnerUsername(currentUser.getUsername())
-                .orElseThrow(() -> new NoSuchElementException("Library not found"));
-
-        if (!existing.getLibrary().getId().equals(userLibrary.getId())) {
-            throw new AccessDeniedException("You are not allowed to modify this book");
+        // Check first if the given data is not empty and existed
+        Optional<Book> optionalBook = bookRepository.findById(bookId);
+        if (optionalBook.isEmpty()) {
+            log.info("#BookService->updateBookById: Book does not exist");
+            return new BookDto();
         }
 
+        Book existingBook = optionalBook.get();
+
+        // Book existed now check if the requester is the owner
+        String username = getCurrentUserUsername();
+        if (username==null) {
+            log.info("#BookService->updateBookById: Book does not exist");
+            return new BookDto();
+        }
+
+        Optional<Library> optionalLibrary = libraryRepository.findByOwnerUsername(username);
+        if (optionalLibrary.isEmpty()) {
+            log.info("#BookService->updateBookById: Library does not exist");
+            return new BookDto();
+        }
+
+        Library existingLibrary = optionalLibrary.get();
+        // Now there is existed user and library
+        if (!existingBook.getLibrary().equals(existingLibrary)) {
+            log.info("#BookService->updateBookById: User not allowed to edit this book");
+            return new BookDto();
+        }
+
+        // Proceed updating
+        log.info("#BookService->updateBookById: Updating book is in process");
         if (bookDto.getIsbn() != null) {
-            existing.setIsbn(bookDto.getIsbn());
+            existingBook.setIsbn(bookDto.getIsbn());
         }
 
-        if (existing.getInventory() != null && bookDto.getInventory() != null) {
-            existing.getInventory().setAvailableStock(bookDto.getInventory().getAvailableStock());
+        if (existingBook.getInventory() != null && bookDto.getInventory() != null) {
+            existingBook.getInventory().setAvailableStock(bookDto.getInventory().getAvailableStock());
         }
 
         if (bookDto.getBookDetail() != null) {
-            BookDetail mergedDetail = bookMapper.mergeBookDetail(existing.getBookDetail(), bookDto.getBookDetail());
+            BookDetail mergedDetail = bookMapper.mergeBookDetail(existingBook.getBookDetail(), bookDto.getBookDetail());
             if (mergedDetail.getAuthors() != null && !(mergedDetail.getAuthors() instanceof java.util.ArrayList)) {
                 mergedDetail.setAuthors(new java.util.ArrayList<>(mergedDetail.getAuthors()));
             }
             if (mergedDetail.getGenres() != null && !(mergedDetail.getGenres() instanceof java.util.ArrayList)) {
                 mergedDetail.setGenres(new java.util.ArrayList<>(mergedDetail.getGenres()));
             }
-            existing.setBookDetail(mergedDetail);
-            if (bookDto.getBookDetail().getQuantity() != null) {
-                inventoryService.updateStock(existing, bookDto.getBookDetail().getQuantity());
-            }
+            existingBook.setBookDetail(mergedDetail);
         }
         if (file != null && !file.isEmpty()) {
-            log.info("update->file is not empty");
+            log.info("#BookService->updateBookById: File is not empty");
             UploadDto uploadDto = imageService.uploadBookCover(
                     file,
-                    existing.getBookDetail().getTitle(),
-                    existing.getId());
-            existing.getBookDetail().setBookCover(uploadDto.getFileUrl());
-            existing.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
+                    existingBook.getBookDetail().getTitle(),
+                    existingBook.getId());
+            existingBook.getBookDetail().setBookCover(uploadDto.getFileUrl());
+            existingBook.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
         }
 
-        Book updatedBook = bookRepository.save(existing);
+        Book updatedBook = bookRepository.save(existingBook);
+        log.info("#BookService->updateBookById: Updated book view count {}", updatedBook.getViewCount());
         return bookMapper.toDto(updatedBook);
     }
 
     @Transactional
     @Override
     public BookDto createBookToLibrary(BookDto bookDto, MultipartFile file) {
-        log.info("Creating book in library");
-        User currentUser = getCurrentUser();
-        Library library = libraryRepository.findByOwnerUsername(currentUser.getUsername())
-                .orElseThrow(() -> new NoSuchElementException("Library not found"));
+        log.info("#BookService->createBookToLibrary: Creating book to library");
 
+        String username = getCurrentUserUsername();
+        if (username==null) {
+            log.info("#BookService->createBookToLibrary: Anonymous|Unauthenticated User is making a request");
+            return new BookDto();
+        }
+
+        Optional<Library> optionalLibrary = libraryRepository.findByOwnerUsername(username);
+        if (optionalLibrary.isEmpty()) {
+            log.info("#BookService->createBookToLibrary: No library found stop the request");
+            return new BookDto();
+        }
+
+        // Proceed on creating book to library
+        Library existingLibrary = optionalLibrary.get();
         Book book = bookMapper.toEntity(bookDto);
+        book.setLibrary(existingLibrary);
         book.setViewCount(0L);
-        book.setLibrary(library);
 
+        // Create an empty inventory
         Inventory inventory = Inventory.builder()
                 .availableStock(bookDto.getBookDetail().getQuantity() != null ? bookDto.getBookDetail().getQuantity() : 0)
                 .reservedStock(0)
@@ -145,9 +191,10 @@ public class BookServiceImpl implements BookService {
                 .build();
         book.setInventory(inventory);
         Book saved = bookRepository.save(book);
+        log.info("#BookService->createBookToLibrary: Book was saved");
 
         if (file != null && !file.isEmpty()) {
-            log.info("create->file is not empty");
+            log.info("#BookService->createBookToLibrary: File is not empty");
             UploadDto uploadDto = imageService.uploadBookCover(
                     file,
                     saved.getBookDetail().getTitle(),
@@ -156,20 +203,32 @@ public class BookServiceImpl implements BookService {
             saved.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
         }
 
+        log.info("#BookService->createBookToLibrary: Creating book to library done");
         return bookMapper.toDto(bookRepository.save(saved));
     }
 
+    @Transactional
     @Override
     public BookDto copyBookToLibrary(BookDto bookDto, MultipartFile file) {
-        log.info("Copying existing book into library");
+        log.info("#BookService->copyBookToLibrary: Save copied book");
 
-        User currentUser = getCurrentUser();
-        Library library = libraryRepository.findByOwnerUsername(currentUser.getUsername())
-                .orElseThrow(() -> new NoSuchElementException("Library not found"));
+        String username = getCurrentUserUsername();
+        if (username==null) {
+            log.info("#BookService->copyBookToLibrary: Anonymous|Unauthenticated User is making a request");
+            return new BookDto();
+        }
+
+        Optional<Library> optionalLibrary = libraryRepository.findByOwnerUsername(username);
+        if (optionalLibrary.isEmpty()) {
+            log.info("#BookService->copyBookToLibrary: No library found stop the request");
+            return new BookDto();
+        }
+
+        Library existingLibrary = optionalLibrary.get();
 
         Book copyBook = bookMapper.toEntity(bookDto);
-        copyBook.setId(null);
-        copyBook.setLibrary(library);
+        copyBook.setId(null); // to make it feel new
+        copyBook.setLibrary(existingLibrary);
         copyBook.setViewCount(0L);
 
         Inventory inventory = Inventory.builder()
@@ -179,10 +238,27 @@ public class BookServiceImpl implements BookService {
                 .shipped(0)
                 .build();
         copyBook.setInventory(inventory);
-
         Book savedCopy = bookRepository.save(copyBook);
+        log.info("#BookService->copyBookToLibrary: Saved copied book");
+
+        if (savedCopy.getBookDetail().getBookCover()!=null && savedCopy.getBookDetail().getBookThumbnailCover()!=null) {
+            // Then book has already existed file then just copy that
+            log.info("#BookService->copyBookToLibrary: There is already existed book cover");
+            UploadDto uploadDto = cloudinaryService.copyImageFromExisting(
+                    savedCopy.getBookDetail().getBookCover(),
+                    savedCopy.getBookDetail().getBookThumbnailCover(),
+                    "book-covers",
+                    savedCopy.getId(),
+                    savedCopy.getBookDetail().getTitle()
+            );
+            if (uploadDto!=null) {
+                savedCopy.getBookDetail().setBookCover(uploadDto.getFileUrl());
+                savedCopy.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
+            }
+        }
+
         if (file != null && !file.isEmpty()) {
-            log.info("New image provided, uploading fresh cover...");
+            log.info("#BookService->copyBookToLibrary: File is not null");
             UploadDto uploadDto = imageService.uploadBookCover(
                     file,
                     savedCopy.getBookDetail().getTitle(),
@@ -190,33 +266,16 @@ public class BookServiceImpl implements BookService {
             );
             savedCopy.getBookDetail().setBookCover(uploadDto.getFileUrl());
             savedCopy.getBookDetail().setBookThumbnailCover(uploadDto.getThumbnailFileUrl());
-
-        } else if (bookDto.getBookDetail() != null &&
-                bookDto.getBookDetail().getBookCover() != null &&
-                bookDto.getBookDetail().getBookThumbnailCover() != null) {
-
-            log.info("No new file uploaded — copying existing cover...");
-            UploadDto copyUpload = imageService.copyImageFromExisting(
-                    bookDto.getBookDetail().getBookCover(),
-                    bookDto.getBookDetail().getBookThumbnailCover(),
-                    "book-covers",
-                    savedCopy.getId(),
-                    savedCopy.getBookDetail().getTitle()
-            );
-            savedCopy.getBookDetail().setBookCover(copyUpload.getFileUrl());
-            savedCopy.getBookDetail().setBookThumbnailCover(copyUpload.getThumbnailFileUrl());
-        } else {
-            log.warn("No image found in original book — skipping image copy.");
         }
-
 
         return bookMapper.toDto(bookRepository.save(savedCopy));
     }
 
-    private User getCurrentUser() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new NoSuchElementException("User not found"));
+    private String getCurrentUserUsername() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return  (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName()))
+                ? auth.getName()
+                : null;
     }
 
 }

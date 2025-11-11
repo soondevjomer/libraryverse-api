@@ -5,7 +5,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface ImageService {
 
-    UploadDto uploadBookCover(MultipartFile file, String bookTitle, Long libraryId);
+    UploadDto uploadBookCover(MultipartFile file, String bookTitle, Long bookId);
 
     UploadDto uploadLibraryCover(MultipartFile file, String libraryName, Long libraryId);
 
