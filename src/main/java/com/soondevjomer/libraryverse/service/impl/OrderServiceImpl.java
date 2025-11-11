@@ -224,6 +224,7 @@ public class OrderServiceImpl implements OrderService {
         updateOrderPaymentStatusToPaid(savedStoreOrder.getOrder().getId());
     }
 
+    @Transactional(readOnly = true)
     @Override
     public PageModel<List<StoreOrderDto>> getStoreOrderByPage(Integer page, Integer size, String sortField, String sortOrder, String status) {
         log.info("Getting store orders...");
@@ -316,6 +317,7 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    @Transactional(readOnly = true)
     private Page<StoreOrder> getStoreOrdersForLibrary(Library library, String status, Pageable pageable) {
         if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
             OrderStatus orderStatus = OrderStatus.valueOf(status.toUpperCase());
@@ -324,6 +326,7 @@ public class OrderServiceImpl implements OrderService {
         return storeOrderRepository.findByLibrary(library, pageable);
     }
 
+    @Transactional(readOnly = true)
     private Page<StoreOrder> getStoreOrdersForCustomer(Customer customer, String status, Pageable pageable) {
         if (status != null && !status.isBlank() && !"ALL".equalsIgnoreCase(status)) {
             OrderStatus orderStatus = OrderStatus.valueOf(status.toUpperCase());

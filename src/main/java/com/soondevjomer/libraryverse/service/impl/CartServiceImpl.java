@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -48,6 +49,7 @@ public class CartServiceImpl implements CartService {
         return cartRepository.save(cart).getId()!=null;
     }
 
+    @Transactional(readOnly = true)
     @Override
     public List<MyCartDto> getMyCart() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
