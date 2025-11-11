@@ -25,19 +25,17 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
      * Core method to upload a file to Cloudinary.
      * Handles thumbnails and cleans up on failure.
      */
-    private UploadDto uploadToCloudinary(MultipartFile file, String folder) {
+    private UploadDto uploadToCloudinary(MultipartFile file, String folder, int thumbWidth, int thumbHeight) {
         log.info("Starting uploadToCloudinary for folder: {}", folder);
 
-        if (file == null) {
-            log.error("File is null, cannot upload to Cloudinary");
+        if (file == null || file.getSize() == 0) {
+            log.error("Invalid file (null or empty), upload aborted.");
             return UploadDto.builder().build();
         }
 
         try {
-            if (file.getSize() == 0) {
-                log.error("File size is 0, upload aborted.");
-                return UploadDto.builder().build();
-            }
+            // Clean old image first
+            deleteImageFolder(folder, null);
 
             Map<String, Object> uploadOptions = ObjectUtils.asMap(
                     "folder", folder,
@@ -50,7 +48,7 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
             var uploadResult = cloudinary.uploader().upload(file.getBytes(), uploadOptions);
 
             if (uploadResult == null) {
-                log.error("Upload result is null, Cloudinary did not return a response");
+                log.error("Upload result is null");
                 return UploadDto.builder().build();
             }
 
@@ -58,13 +56,12 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
             String publicId = (String) uploadResult.get("public_id");
 
             if (fileUrl == null || publicId == null) {
-                log.error("Upload failed: missing secure_url or public_id in response");
+                log.error("Upload failed: missing secure_url or public_id");
                 return UploadDto.builder().build();
             }
 
-            // Generate a consistent thumbnail version
             String thumbnailUrl = cloudinary.url()
-                    .transformation(new Transformation().width(300).height(450).crop("fill"))
+                    .transformation(new Transformation().width(thumbWidth).height(thumbHeight).crop("fill"))
                     .secure(true)
                     .generate(publicId + ".jpg");
 
@@ -78,22 +75,18 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
                     .build();
 
         } catch (Exception e) {
-            log.error("Exception during Cloudinary upload to folder {}: {}", folder, e.getMessage(), e);
-            try {
-                deleteImageFolder(folder, null);
-            } catch (Exception cleanupError) {
-                log.error("Cleanup after failed upload failed: {}", cleanupError.getMessage(), cleanupError);
-            }
+            log.error("Exception during upload to folder {}: {}", folder, e.getMessage(), e);
             return UploadDto.builder().build();
         }
     }
+
 
     /**
      * Uploads book cover into "book-covers/{bookId}" folder.
      */
     @Override
     public UploadDto uploadBookCover(MultipartFile file, String bookTitle, Long bookId) {
-        return uploadToCloudinary(file, "book-covers/" + bookId);
+        return uploadToCloudinary(file, "book-covers/" + bookId, 300, 450);
     }
 
     /**
@@ -101,7 +94,7 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
      */
     @Override
     public UploadDto uploadLibraryCover(MultipartFile file, String libraryName, Long libraryId) {
-        return uploadToCloudinary(file, "library-covers/" + libraryId);
+        return uploadToCloudinary(file, "library-covers/" + libraryId, 800, 400);
     }
 
     /**
@@ -109,7 +102,7 @@ public class CloudinaryImageServiceImpl implements CloudinaryService {
      */
     @Override
     public UploadDto uploadProfileImage(MultipartFile file, String username, Long userId) {
-        return uploadToCloudinary(file, "profile-images/" + userId);
+        return uploadToCloudinary(file, "profile-images/" + userId, 200, 200);
     }
 
     /**
