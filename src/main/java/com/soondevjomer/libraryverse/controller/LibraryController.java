@@ -54,7 +54,7 @@ public class LibraryController {
         return ResponseEntity.ok(libraryService.getLibraryById(libraryId));
     }
 
-    @PutMapping(value = "/{libraryId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/{libraryId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> updateLibraryById(
             @PathVariable Long libraryId,
             @RequestPart(value = "library") LibraryRequestDto libraryRequestDto,
