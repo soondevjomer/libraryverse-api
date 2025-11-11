@@ -132,6 +132,7 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.toOrderResponse(saved);
     }
 
+    @Transactional
     @Override
     public void markAsShipped(Long storeOrderId) {
         log.info("#OrderService->markAsShipped: Marking as shipped {}", storeOrderId);
@@ -163,6 +164,7 @@ public class OrderServiceImpl implements OrderService {
         log.info("#OrderService->markAsShipped: Saved Store Order: {}", savedStoreOrder);
     }
 
+    @Transactional
     @Override
     public void cancelOrder(Long storeOrderId) {
         log.info("#OrderService->cancelOrder: Cancel order");
