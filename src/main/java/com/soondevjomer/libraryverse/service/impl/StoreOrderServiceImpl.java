@@ -283,6 +283,7 @@ public class StoreOrderServiceImpl implements StoreOrderService {
                 .build();
     }
 
+    @Transactional
     @Override
     public PageModel<List<LibrarianSaleDto>> getSalesByLibrarianByPage(
         Integer page, Integer size, String sortField, String sortOrder) {
