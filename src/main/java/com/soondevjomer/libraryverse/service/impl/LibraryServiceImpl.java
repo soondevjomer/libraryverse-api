@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,19 +95,28 @@ public class LibraryServiceImpl implements LibraryService {
     }
 
     @Override
-    public LibraryDto getLibraryById(Long libraryId) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        Library library = libraryRepository.findById(libraryId).orElseThrow(() -> new RuntimeException("Library not found"));
-        Optional<Library> userLibrary = libraryRepository.findByOwnerUsername(username);
+    public Optional<LibraryDto> getLibraryById(Long libraryId) {
+        String username = getCurrentUser();
 
-        if (userLibrary.isPresent() && !userLibrary.get().getId().equals(library.getId())) {
-            log.info("Increase view count of this library {}", library.getName());
-            library.setViewCount(library.getViewCount() + 1);
+        Optional<Library> optionalLibrary = libraryRepository.findById(libraryId);
+        if (optionalLibrary.isEmpty()) {
+            log.info("library is empty or invalid library id that's why get nothing");
+            return Optional.empty();
         }
-        Library savedLibrary = libraryRepository.save(library);
+
+        Library library = optionalLibrary.get();
+
+        if (username!=null) {
+            Optional<Library> userLibrary = libraryRepository.findByOwnerUsername(username);
+            if (userLibrary.isPresent() && !userLibrary.get().getId().equals(library.getId())) {
+                log.info("Increase view count of this library {}", library.getName());
+                library.setViewCount(Optional.ofNullable(library.getViewCount()).orElse(0L) + 1);
+                library = libraryRepository.save(library);
+            }
+        }
 
         log.info("give library by library id");
-        return libraryMapper.toDto(savedLibrary);
+        return Optional.of(libraryMapper.toDto(library));
     }
 
     @Override
@@ -158,5 +168,12 @@ public class LibraryServiceImpl implements LibraryService {
         }
 
         return LibraryInfoDto.builder().libraryDto(null).build();
+    }
+
+    private String getCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return  (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName()))
+                ? auth.getName()
+                : null;
     }
 }

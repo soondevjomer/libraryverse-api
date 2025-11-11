@@ -4,6 +4,7 @@ import com.soondevjomer.libraryverse.dto.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface LibraryService {
 
@@ -13,7 +14,7 @@ public interface LibraryService {
 
     PageModel<List<LibraryDto>> getLibraryByPage(FilterDto filterDto);
 
-    LibraryDto getLibraryById(Long libraryId);
+    Optional<LibraryDto> getLibraryById(Long libraryId);
 
     LibraryDto updateLibraryById(Long libraryId, LibraryRequestDto libraryRequestDto, MultipartFile file);
 
