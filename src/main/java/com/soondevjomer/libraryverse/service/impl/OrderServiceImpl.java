@@ -157,7 +157,10 @@ public class OrderServiceImpl implements OrderService {
         }
 
         storeOrder.setOrderStatus(OrderStatus.SHIPPED);
-        storeOrderRepository.save(storeOrder);
+        log.info("#OrderService->markAsShipped: Store Order Order Status set to Shipped");
+
+        StoreOrder savedStoreOrder = storeOrderRepository.save(storeOrder);
+        log.info("#OrderService->markAsShipped: Saved Store Order: {}", savedStoreOrder);
     }
 
     @Override
@@ -335,12 +338,5 @@ public class OrderServiceImpl implements OrderService {
         }
         log.info("getting store order without order status");
         return storeOrderRepository.findByOrder_Customer(customer, pageable);
-    }
-
-    private String getCurrentUserUsername() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return  (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getName()))
-                ? auth.getName()
-                : null;
     }
 }
