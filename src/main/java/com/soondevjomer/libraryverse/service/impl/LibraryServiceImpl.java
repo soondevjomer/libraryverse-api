@@ -119,6 +119,7 @@ public class LibraryServiceImpl implements LibraryService {
         return Optional.of(libraryMapper.toDto(library));
     }
 
+    @Transactional
     @Override
     public LibraryDto updateLibraryById(Long libraryId, LibraryRequestDto libraryRequestDto, MultipartFile file) {
         log.info("request to update library...");
