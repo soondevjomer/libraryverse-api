@@ -11,6 +11,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Optional;
+
 public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificationExecutor<Book> {
 
     long countByLibrary(Library library);
@@ -28,4 +30,13 @@ public interface BookRepository extends JpaRepository<Book, Long>, JpaSpecificat
       LEFT JOIN b.inventory i
     """)
     Double findMaxPopularityScore();
+
+    @Query("""
+       SELECT b FROM Book b
+       LEFT JOIN FETCH b.inventory
+       LEFT JOIN FETCH b.library
+       WHERE b.id = :bookId
+       """)
+    Optional<Book> findByIdWithRelations(@Param("bookId") Long bookId);
+
 }

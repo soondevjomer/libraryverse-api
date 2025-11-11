@@ -7,6 +7,7 @@ import com.soondevjomer.libraryverse.model.*;
 import com.soondevjomer.libraryverse.repository.BookRepository;
 import com.soondevjomer.libraryverse.repository.LibraryRepository;
 import com.soondevjomer.libraryverse.service.PopularityService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,26 +28,24 @@ public class PopularityServiceImpl implements PopularityService {
      * Formula: (views * 0.1) + (delivered sales * 0.9)
      */
     @Override
+    @Transactional
     public PopularityDto calcBookPopulariyScore(Long bookId) {
         log.info("Calculating book popularity score for ID {}", bookId);
 
         final double VIEWS_WEIGHT = 0.1;
         final double SALES_WEIGHT = 0.9;
 
-        Book book = bookRepository.findById(bookId)
+        Book book = bookRepository.findByIdWithRelations(bookId)
                 .orElseThrow(() -> new NoSuchElementException("Book not found with ID: " + bookId));
 
-        // Handle nulls gracefully
         double bookViews = Optional.ofNullable(book.getViewCount()).orElse(0L).doubleValue();
         double deliveredSales = Optional.ofNullable(book.getInventory())
                 .map(Inventory::getDelivered)
                 .map(Integer::doubleValue)
                 .orElse(0.0);
 
-        // Weighted formula
         double popularityScore = (bookViews * VIEWS_WEIGHT) + (deliveredSales * SALES_WEIGHT);
 
-        // Normalize (avoid divide-by-zero)
         Double maxPopularity = bookRepository.findMaxPopularityScore();
         if (maxPopularity == null || maxPopularity == 0) {
             maxPopularity = 1.0;
@@ -69,6 +68,7 @@ public class PopularityServiceImpl implements PopularityService {
      * Formula: (views * 0.1) + (totalRevenue * 0.6) + (totalSales * 0.3)
      */
     @Override
+    @Transactional
     public PopularityDto calcLibraryPopularityScore(Long libraryId) {
         log.info("Calculating library popularity score for ID {}", libraryId);
 
@@ -76,44 +76,37 @@ public class PopularityServiceImpl implements PopularityService {
         final double REVENUE_WEIGHT = 0.6;
         final double SALES_WEIGHT = 0.3;
 
-        Library library = libraryRepository.findById(libraryId)
+        Library library = libraryRepository.findByIdWithRelations(libraryId)
                 .orElseThrow(() -> new NoSuchElementException("Library not found with ID: " + libraryId));
 
-        // Views
         double libraryViews = Optional.ofNullable(library.getViewCount()).orElse(0L).doubleValue();
 
-        // Revenue from PAID + DELIVERED orders
-        double totalRevenue = 0.0;
-        if (library.getStoreOrders() != null && !library.getStoreOrders().isEmpty()) {
-            totalRevenue = library.getStoreOrders().stream()
-                    .filter(Objects::nonNull)
-                    .filter(order ->
-                            order.getPaymentStatus() == PaymentStatus.PAID &&
-                                    order.getOrderStatus() == OrderStatus.DELIVERED)
-                    .map(StoreOrder::getSubtotal)
-                    .filter(Objects::nonNull)
-                    .mapToDouble(BigDecimal::doubleValue)
-                    .sum();
-        }
+        // Compute total revenue from delivered + paid store orders
+        double totalRevenue = library.getStoreOrders() == null ? 0.0 :
+                library.getStoreOrders().stream()
+                        .filter(Objects::nonNull)
+                        .filter(order ->
+                                order.getPaymentStatus() == PaymentStatus.PAID &&
+                                        order.getOrderStatus() == OrderStatus.DELIVERED)
+                        .map(StoreOrder::getSubtotal)
+                        .filter(Objects::nonNull)
+                        .mapToDouble(BigDecimal::doubleValue)
+                        .sum();
 
-        // Total delivered books count
-        double totalSalesCount = 0.0;
-        if (library.getBooks() != null && !library.getBooks().isEmpty()) {
-            totalSalesCount = library.getBooks().stream()
-                    .map(Book::getInventory)
-                    .filter(Objects::nonNull)
-                    .map(Inventory::getDelivered)
-                    .filter(Objects::nonNull)
-                    .mapToDouble(Integer::doubleValue)
-                    .sum();
-        }
+        // Compute total sales from delivered books
+        double totalSalesCount = library.getBooks() == null ? 0.0 :
+                library.getBooks().stream()
+                        .map(Book::getInventory)
+                        .filter(Objects::nonNull)
+                        .map(Inventory::getDelivered)
+                        .filter(Objects::nonNull)
+                        .mapToDouble(Integer::doubleValue)
+                        .sum();
 
-        // Compute weighted popularity
         double popularityScore = (libraryViews * VIEWS_WEIGHT)
                 + (totalRevenue * REVENUE_WEIGHT)
                 + (totalSalesCount * SALES_WEIGHT);
 
-        // Normalize against global max
         Double maxPopularityScore = libraryRepository.findMaxPopularityScore();
         if (maxPopularityScore == null || maxPopularityScore == 0) {
             maxPopularityScore = 1.0;

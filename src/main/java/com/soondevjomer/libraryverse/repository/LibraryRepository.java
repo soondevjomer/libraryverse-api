@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
@@ -32,6 +33,15 @@ public interface LibraryRepository extends JpaRepository<Library, Long>, JpaSpec
     ) AS scores
     """, nativeQuery = true)
     Double findMaxPopularityScore();
+
+    @Query("""
+       SELECT l FROM Library l
+       LEFT JOIN FETCH l.books b
+       LEFT JOIN FETCH l.storeOrders o
+       LEFT JOIN FETCH b.inventory
+       WHERE l.id = :libraryId
+       """)
+    Optional<Library> findByIdWithRelations(@Param("libraryId") Long libraryId);
 
 }
 
