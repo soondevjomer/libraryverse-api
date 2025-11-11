@@ -83,7 +83,6 @@ public class LibraryServiceImpl implements LibraryService {
         Page<Library> libraryPage = libraryRepository.findAll(spec, pageable);
 
         List<LibraryDto> libraryDtos = libraryPage.map(libraryMapper::toDto).toList();
-        log.info("library dtos: {}", libraryDtos);
 
         return new PageModel<>(
                 libraryDtos,
@@ -94,6 +93,7 @@ public class LibraryServiceImpl implements LibraryService {
         );
     }
 
+    @Transactional(readOnly = true)
     @Override
     public Optional<LibraryDto> getLibraryById(Long libraryId) {
         String username = getCurrentUser();
