@@ -1,6 +1,7 @@
 package com.soondevjomer.libraryverse.service.impl;
 
 import com.soondevjomer.libraryverse.constant.Role;
+import com.soondevjomer.libraryverse.dto.ChangePasswordRequest;
 import com.soondevjomer.libraryverse.dto.CheckRequestDto;
 import com.soondevjomer.libraryverse.dto.ProfileDto;
 import com.soondevjomer.libraryverse.dto.UploadDto;
@@ -13,6 +14,7 @@ import com.soondevjomer.libraryverse.service.ProfileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,6 +29,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final UserRepository userRepository;
     private final CustomerRepository customerRepository;
     private final ImageService imageService;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     @Override
@@ -147,6 +150,33 @@ public class ProfileServiceImpl implements ProfileService {
         profileDto.setImage(currentUser.getImage());
 
         return profileDto;
+    }
+
+    @Transactional
+    @Override
+    public boolean changePassword(ChangePasswordRequest changePasswordRequest) {
+        log.info("#ProfileService->changePassword: Change password service start");
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        log.info("#ProfileService->changePassword: Username is {}", username);
+        if (username != null) {
+            Optional<User> optionalUser = userRepository.findByUsername(username);
+
+            if (optionalUser.isPresent()) {
+                User user = optionalUser.get();
+                if (!passwordEncoder.matches(changePasswordRequest.getCurrent(), user.getPassword())) {
+                    log.info("#ProfileService->changePassword: Current password is not equal to user provided so failed");
+                    return false;
+                }
+                // proceed updating for new password
+                user.setPassword(passwordEncoder.encode(changePasswordRequest.getNewPassword()));
+                userRepository.save(user);
+                log.info("#ProfileService->changePassword: Change password success");
+                return true;
+            }
+        }
+        log.info("#ProfileService->changePassword: Change password failed");
+        return false;
     }
 
 }

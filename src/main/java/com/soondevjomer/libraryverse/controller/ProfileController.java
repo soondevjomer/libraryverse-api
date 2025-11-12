@@ -1,5 +1,6 @@
 package com.soondevjomer.libraryverse.controller;
 
+import com.soondevjomer.libraryverse.dto.ChangePasswordRequest;
 import com.soondevjomer.libraryverse.dto.CheckRequestDto;
 import com.soondevjomer.libraryverse.dto.ProfileDto;
 import com.soondevjomer.libraryverse.service.ProfileService;
@@ -46,6 +47,13 @@ public class ProfileController {
     public ResponseEntity<?> getProfile() {
         log.info("Getting profile from controller");
         return ResponseEntity.ok(profileService.getProfile());
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest changePasswordRequest) {
+        log.info("Change password from controller");
+        boolean result = profileService.changePassword(changePasswordRequest);
+        return ResponseEntity.ok(Map.of("result", result));
     }
 
 }

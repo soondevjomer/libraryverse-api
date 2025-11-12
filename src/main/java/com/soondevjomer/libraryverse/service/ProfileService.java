@@ -1,5 +1,6 @@
 package com.soondevjomer.libraryverse.service;
 
+import com.soondevjomer.libraryverse.dto.ChangePasswordRequest;
 import com.soondevjomer.libraryverse.dto.CheckRequestDto;
 import com.soondevjomer.libraryverse.dto.ProfileDto;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,4 +14,6 @@ public interface ProfileService {
     boolean emailExist(CheckRequestDto checkRequestDto);
 
     ProfileDto getProfile();
+
+    boolean changePassword(ChangePasswordRequest changePasswordRequest);
 }
